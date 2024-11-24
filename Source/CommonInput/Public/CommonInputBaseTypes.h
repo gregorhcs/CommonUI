@@ -168,7 +168,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputType InputType;
 	
+	// - G-Mod 1 Changes to easily support DualSense
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta=(EditCondition="InputType == ECommonInputType::Gamepad"))
+	// --- G-Mod 1 Changes to easily support DualSense
 	FName GamepadName;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta = (EditCondition = "InputType == ECommonInputType::Gamepad"))

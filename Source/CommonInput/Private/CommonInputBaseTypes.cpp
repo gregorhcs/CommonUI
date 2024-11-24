@@ -311,6 +311,8 @@ FName UCommonInputPlatformSettings::GetBestGamepadNameForHardware(FName CurrentG
 {
 	InitializeControllerData();
 
+	// - G-Mod 1  Changes to easily support DualSense
+
 	// This is far more complicated than it should be because XInput exposes no information about device type,
 	// so we want to be 'sticky', only switching to an Xbox controller if you don't already have one selected
 	// and otherwise conserving the player UI chosen choice
@@ -332,6 +334,8 @@ FName UCommonInputPlatformSettings::GetBestGamepadNameForHardware(FName CurrentG
 	}
 
 	return CurrentGamepadName;
+
+	// --- G-Mod 1 Changes to easily support DualSense
 }
 
 bool UCommonInputPlatformSettings::SupportsInputType(ECommonInputType InputType) const
