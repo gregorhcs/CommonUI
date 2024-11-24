@@ -287,10 +287,12 @@ void CommonUI::InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, con
 	}
 }
 
-FSlateBrush CommonUI::GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction)
+// - G-Mod 2 CommonActionWidget: allow specifying key to be displayed by index if multiple bound
+FSlateBrush CommonUI::GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction, int IconIndex)
 {
-	FKey FirstKeyForCurrentInput = GetFirstKeyForInputType(CommonInputSubsystem->GetLocalPlayer(), CommonInputSubsystem->GetCurrentInputType(), InputAction);
-
+	FKey FirstKeyForCurrentInput = GetKeyAtIndexForInputType(CommonInputSubsystem->GetLocalPlayer(), CommonInputSubsystem->GetCurrentInputType(), InputAction, IconIndex);
+// - G-Mod 2
+	
 	FSlateBrush SlateBrush;
 	if (FirstKeyForCurrentInput.IsValid() && UCommonInputPlatformSettings::Get()->TryGetInputBrush(SlateBrush, FirstKeyForCurrentInput, CommonInputSubsystem->GetCurrentInputType(), CommonInputSubsystem->GetCurrentGamepadName()))
 	{
@@ -369,3 +371,56 @@ FKey CommonUI::GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonI
 
 	return FKey();
 }
+
+// - G-Mod 2 CommonActionWidget: allow specifying key to be displayed by index if multiple bound
+FKey CommonUI::GetKeyAtIndexForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType,
+	const UInputAction* InputAction, int IconIndex)
+{
+	if (!LocalPlayer)
+	{
+		return FKey();
+	}
+
+	TArray<FKey> Keys;
+	if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+	{
+		Keys = EnhancedInputLocalPlayerSubsystem->QueryKeysMappedToAction(InputAction);
+	}
+
+	int Index = -1;
+	for (const FKey& Key : Keys)
+	{
+		if (!Key.IsValid())
+		{
+			continue;
+		}
+
+		if (Key.IsTouch() && InputType == ECommonInputType::Touch)
+		{
+			Index++;
+			if (Index == IconIndex)
+			{
+				return Key;
+			}
+		}
+		else if (Key.IsGamepadKey() && InputType == ECommonInputType::Gamepad)
+		{
+			Index++;
+			if (Index == IconIndex)
+			{
+				return Key;
+			}
+		}
+		else if (!Key.IsTouch() && !Key.IsGamepadKey() && InputType == ECommonInputType::MouseAndKeyboard)
+		{
+			Index++;
+			if (Index == IconIndex)
+			{
+				return Key;
+			}
+		}
+	}
+
+	return FKey();
+}
+// --- G-Mod 2

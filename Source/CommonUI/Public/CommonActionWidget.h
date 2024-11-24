@@ -109,6 +109,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<class UInputAction> EnhancedInputAction;
 
+	// - G-Mod 2 CommonActionWidget: allow specifying key to be displayed by index if multiple bound
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CommonActionWidget)
+	int IconIndexIfBoundToMultiple = 0;
+	// --- G-Mod 2
+	
 	FUIActionBindingHandle DisplayedBindingHandle;
 
 #if WITH_EDITORONLY_DATA

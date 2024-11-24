@@ -118,7 +118,9 @@ FSlateBrush UCommonActionWidget::GetIcon() const
 		if (const UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem())
 		{
 			return EnhancedInputAction && CommonUI::IsEnhancedInputSupportEnabled()
-				? CommonUI::GetIconForEnhancedInputAction(CommonInputSubsystem, EnhancedInputAction)
+// - G-Mod 2 CommonActionWidget: allow specifying key to be displayed by index if multiple bound
+				? CommonUI::GetIconForEnhancedInputAction(CommonInputSubsystem, EnhancedInputAction, IconIndexIfBoundToMultiple)
+// --- G-Mod 2
 				: CommonUI::GetIconForInputActions(CommonInputSubsystem, InputActions);
 		}
 	}
