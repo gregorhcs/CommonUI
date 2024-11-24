@@ -335,7 +335,7 @@ FName UCommonInputPlatformSettings::GetBestGamepadNameForHardware(FName CurrentG
 
 	return CurrentGamepadName;
 
-	// --- G-Mod 1 Changes to easily support DualSense
+	// --- G-Mod 1
 }
 
 bool UCommonInputPlatformSettings::SupportsInputType(ECommonInputType InputType) const

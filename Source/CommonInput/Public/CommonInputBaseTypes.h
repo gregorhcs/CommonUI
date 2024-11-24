@@ -170,7 +170,7 @@ public:
 	
 	// - G-Mod 1 Changes to easily support DualSense
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta=(EditCondition="InputType == ECommonInputType::Gamepad"))
-	// --- G-Mod 1 Changes to easily support DualSense
+	// --- G-Mod 1
 	FName GamepadName;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta = (EditCondition = "InputType == ECommonInputType::Gamepad"))
