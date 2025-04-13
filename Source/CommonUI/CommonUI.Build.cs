@@ -6,6 +6,9 @@ public class CommonUI : ModuleRules
 {
 	public CommonUI(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
