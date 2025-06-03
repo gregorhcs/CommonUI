@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonButtonTypes.h"
+
+#include "CommonUISettings.h"
+#include "Framework/Application/SlateApplication.h"
+#include "ICommonUIModule.h"
 #include "Input/Reply.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -129,7 +133,8 @@ FReply SCommonButton::OnTouchMoved(const FGeometry& MyGeometry, const FPointerEv
 
 FReply SCommonButton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (InKeyEvent.GetKey() == EKeys::Enter)
+	if (ICommonUIModule::GetSettings().GetCommonButtonAcceptKeyHandling() == ECommonButtonAcceptKeyHandling::Ignore
+		&& FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		return FReply::Unhandled();
 	}
@@ -138,7 +143,8 @@ FReply SCommonButton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 
 FReply SCommonButton::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (InKeyEvent.GetKey() == EKeys::Enter)
+	if (ICommonUIModule::GetSettings().GetCommonButtonAcceptKeyHandling() == ECommonButtonAcceptKeyHandling::Ignore
+		&& FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		return FReply::Unhandled();
 	}

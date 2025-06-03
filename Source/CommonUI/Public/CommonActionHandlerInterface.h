@@ -8,6 +8,8 @@
 #include "UObject/Interface.h"
 #include "CommonActionHandlerInterface.generated.h"
 
+#define UE_API COMMONUI_API
+
 // @FIXME: This entire file is related to legacy CommonUI and should be removed in 5.3 - UE-164871
 
 enum EInputEvent : int;
@@ -43,7 +45,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FCommonActionProgressNative, float);
 
 // @FIXME: This struct is related to legacy CommonUI and should be removed in 5.3 - UE-164871
 USTRUCT(BlueprintType)
-struct COMMONUI_API FCommonInputActionHandlerData
+struct FCommonInputActionHandlerData
 {
 	GENERATED_BODY()
 
@@ -68,7 +70,7 @@ struct COMMONUI_API FCommonInputActionHandlerData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Default)
 	FDataTableRowHandle InputActionRow;
 
-	EInputActionState GetState(ECommonInputType InputType, const FName& GamepadName) const;
+	UE_API EInputActionState GetState(ECommonInputType InputType, const FName& GamepadName) const;
 	void SetState(EInputActionState InState)
 	{
 		State = InState;
@@ -117,8 +119,8 @@ struct FCommonInputActionHandlerDelegateData
  *  @FIXME: This interface is related to legacy CommonUI and should be removed in 5.3 - UE-164871
  */
 
-UINTERFACE()
-class COMMONUI_API UCommonActionHandlerInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UCommonActionHandlerInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
@@ -144,3 +146,5 @@ public:
 	 */
 	virtual void TriggerFirstMatchingInputAction(int32 ControllerId, const FCommonInputActionDataBase& InInputActionData, bool bHoldAction) = 0;
 };
+
+#undef UE_API

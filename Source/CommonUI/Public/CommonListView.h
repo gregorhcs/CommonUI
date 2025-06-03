@@ -5,6 +5,8 @@
 #include "Components/ListView.h"
 #include "CommonListView.generated.h"
 
+#define UE_API COMMONUI_API
+
 class STableViewBase;
 
 //////////////////////////////////////////////////////////////////////////
@@ -41,7 +43,16 @@ public:
 					TOptional<ItemType> FirstValidItem = this->Private_FindNextSelectableOrNavigable(SelectedItem);
 					if (FirstValidItem.IsSet())
 					{
-						this->SetSelection(FirstValidItem.GetValue(), ESelectInfo::OnNavigation);
+						// Only select the item if that's desired, otherwise only update SelectorItem
+						if (this->bSelectItemOnNavigation)
+						{
+							this->SetSelection(FirstValidItem.GetValue(), ESelectInfo::OnNavigation);
+						}
+						else
+						{
+							this->SelectorItem = FirstValidItem.GetValue();
+						}
+
 						this->RequestNavigateToItem(FirstValidItem.GetValue(), InFocusEvent.GetUser());
 					}
 				}
@@ -90,22 +101,24 @@ protected:
 // UCommonListView
 //////////////////////////////////////////////////////////////////////////
 
-UCLASS()
-class COMMONUI_API UCommonListView : public UListView
+UCLASS(MinimalAPI)
+class UCommonListView : public UListView
 {
 	GENERATED_BODY()
 
 public:
-	UCommonListView(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonListView(const FObjectInitializer& ObjectInitializer);
 	
 	UFUNCTION(BlueprintCallable, Category = ListView)
-	void SetEntrySpacing(float InEntrySpacing);
+	UE_API void SetEntrySpacing(float InEntrySpacing);
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
-	virtual TSharedRef<STableViewBase> RebuildListWidget() override;
-	virtual UUserWidget& OnGenerateEntryWidgetInternal(UObject* Item, TSubclassOf<UUserWidget> DesiredEntryClass, const TSharedRef<STableViewBase>& OwnerTable) override;
+	UE_API virtual TSharedRef<STableViewBase> RebuildListWidget() override;
+	UE_API virtual UUserWidget& OnGenerateEntryWidgetInternal(UObject* Item, TSubclassOf<UUserWidget> DesiredEntryClass, const TSharedRef<STableViewBase>& OwnerTable) override;
 };
+
+#undef UE_API

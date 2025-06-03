@@ -21,7 +21,3 @@ namespace ECommonUIObjectVersion
 	// The GUID for this custom version number
 	const extern FGuid Guid;
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreTypes.h"
-#endif

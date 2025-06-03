@@ -62,7 +62,7 @@ void UCommonDateTimeTextBlock::SetDateTimeValue(const FDateTime InDateTime, bool
 
 void UCommonDateTimeTextBlock::SetTimespanValue(const FTimespan InTimespan)
 {
-	SetDateTimeValue(FDateTime::Now() + InTimespan, true);
+	SetDateTimeValue(GetTimespanStartingTime() + InTimespan, true);
 }
 
 void UCommonDateTimeTextBlock::SetCountDownCompletionText(const FText InCompletionText)
@@ -84,7 +84,7 @@ void UCommonDateTimeTextBlock::UpdateUnderlyingText()
 	TOptional<FText> TextToSet = TOptional<FText>();
 	if (bShowAsCountdown)
 	{
-		FTimespan Remaining = DateTime - FDateTime::Now();
+		FTimespan Remaining = DateTime - GetTimespanStartingTime();
 		if (TimerTickHandle.IsValid() && ShouldClearTimer(Remaining))
 		{
 			UWorld* const World = GetWorld();
@@ -120,6 +120,11 @@ void UCommonDateTimeTextBlock::UpdateUnderlyingText()
 	{
 		SetText(TextToSet.GetValue());
 	}
+}
+
+FDateTime UCommonDateTimeTextBlock::GetTimespanStartingTime() const
+{
+	return FDateTime::Now();
 }
 
 bool UCommonDateTimeTextBlock::ShouldClearTimer(const FTimespan& TimeRemaining) const

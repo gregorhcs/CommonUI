@@ -37,6 +37,7 @@ void UCommonActivatableWidget::NativeConstruct()
 		{
 			FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetEnhancedInputBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
 			BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
+			BindArgs.OverrideDisplayName = OverrideBackActionDisplayName;
 
 			DefaultBackActionHandle = RegisterUIActionBinding(BindArgs);
 		}
@@ -44,6 +45,7 @@ void UCommonActivatableWidget::NativeConstruct()
 		{
 			FBindUIActionArgs BindArgs(ICommonInputModule::GetSettings().GetDefaultBackAction(), FSimpleDelegate::CreateUObject(this, &UCommonActivatableWidget::HandleBackAction));
 			BindArgs.bDisplayInActionBar = bIsBackActionDisplayedInActionBar;
+			BindArgs.OverrideDisplayName = OverrideBackActionDisplayName;
 
 			DefaultBackActionHandle = RegisterUIActionBinding(BindArgs);
 		}
@@ -210,12 +212,11 @@ TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActi
 		return CalculatedActionDomainCache.GetValue().Get();
 	}
 
-	const FName SObjectWidgetName = TEXT("SObjectWidget");
 	const ULocalPlayer* OwningLocalPlayer = GetOwningLocalPlayer();
 	TSharedPtr<SWidget> CurrentWidget = GetCachedWidget();
 	while (CurrentWidget)
 	{
-		if (CurrentWidget->GetType().IsEqual(SObjectWidgetName))
+		if (CurrentWidget->GetMetaData<FCommonActivatableSlateMetaData>().IsValid())
 		{
 			const TSharedPtr<ICommonInputActionDomainMetaData> Metadata = CurrentWidget->GetMetaData<ICommonInputActionDomainMetaData>();
 			if (Metadata.IsValid())
@@ -243,6 +244,11 @@ TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActi
 	return nullptr;
 }
 
+void UCommonActivatableWidget::ResetCalculatedActionDomainCache()
+{
+	CalculatedActionDomainCache.Reset();
+}
+
 TSharedRef<SWidget> UCommonActivatableWidget::RebuildWidget()
 {
 	// Note: the scoped builder guards against design-time so we don't need to here (as it'd make the scoped lifetime more awkward to leverage)
@@ -253,6 +259,17 @@ TSharedRef<SWidget> UCommonActivatableWidget::RebuildWidget()
 	}
 	
 	return Super::RebuildWidget();
+}
+
+void UCommonActivatableWidget::OnWidgetRebuilt()
+{
+	Super::OnWidgetRebuilt();
+
+	TSharedPtr<SObjectWidget> GCWidget = MyGCWidget.Pin();
+	if (GCWidget.IsValid() && !GCWidget->GetMetaData<FCommonActivatableSlateMetaData>().IsValid())
+	{
+		GCWidget->AddMetadata(MakeShared<FCommonActivatableSlateMetaData>());
+	}
 }
 
 void UCommonActivatableWidget::ReleaseSlateResources(bool bReleaseChildren)
@@ -271,17 +288,7 @@ void UCommonActivatableWidget::NativeOnActivated()
 			UE_LOG(LogCommonUI, Verbose, TEXT("[%s] set visibility to [%s] on activation"), *GetName(), *StaticEnum<ESlateVisibility>()->GetDisplayValueAsText(ActivatedVisibility).ToString());
 		}
 
-		if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
-		{
-			if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					InputSystem->AddMappingContext(InputMapping, InputMappingPriority);
-				}
-			}
-		}
-
+		ActivateMappingContext();
 		BP_OnActivated();
 		OnActivated().Broadcast();
 		BP_OnWidgetActivated.Broadcast();
@@ -298,16 +305,7 @@ void UCommonActivatableWidget::NativeOnDeactivated()
 			UE_LOG(LogCommonUI, Verbose, TEXT("[%s] set visibility to [%s] on deactivation"), *GetName(), *StaticEnum<ESlateVisibility>()->GetDisplayValueAsText(DeactivatedVisibility).ToString());
 		}
 
-		if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
-		{
-			if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-			{
-				if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-				{
-					InputSystem->RemoveMappingContext(InputMapping);
-				}
-			}
-		}
+		DeactivateMappingContext();
 
 		// Cancel any holds that were active
 		ClearActiveHoldInputs();
@@ -315,6 +313,34 @@ void UCommonActivatableWidget::NativeOnDeactivated()
 		BP_OnDeactivated();
 		OnDeactivated().Broadcast();
 		BP_OnWidgetDeactivated.Broadcast();
+	}
+}
+
+void UCommonActivatableWidget::ActivateMappingContext()
+{
+	if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
+	{
+		if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				InputSystem->AddMappingContext(InputMapping, InputMappingPriority);
+			}
+		}
+	}
+}
+
+void UCommonActivatableWidget::DeactivateMappingContext()
+{
+	if (CommonUI::IsEnhancedInputSupportEnabled() && InputMapping)
+	{
+		if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* InputSystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				InputSystem->RemoveMappingContext(InputMapping);
+			}
+		}
 	}
 }
 

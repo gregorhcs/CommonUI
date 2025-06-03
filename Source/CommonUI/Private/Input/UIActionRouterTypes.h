@@ -7,6 +7,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#define UE_API COMMONUI_API
+
 enum EInputEvent : int;
 enum class EProcessHoldActionResult;
 struct FKey;
@@ -43,33 +45,33 @@ DECLARE_LOG_CATEGORY_EXTERN(LogUIActionRouter, Log, All);
 // FActionRouterBindingCollection
 //////////////////////////////////////////////////////////////////////////
 
-class COMMONUI_API FActionRouterBindingCollection : public TSharedFromThis<FActionRouterBindingCollection>
+class FActionRouterBindingCollection : public TSharedFromThis<FActionRouterBindingCollection>
 {
 public:
 	virtual ~FActionRouterBindingCollection() {}
 
-	virtual EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
-	virtual bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
+	UE_API virtual EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const;
+	UE_API virtual bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const;
 	virtual bool IsReceivingInput() const { return true; }
 
-	void AddBinding(FUIActionBinding& Binding);
+	UE_API void AddBinding(FUIActionBinding& Binding);
 	
-	void RemoveBindings(const TArray<FUIActionBindingHandle>& WidgetBindings);
-	void RemoveBinding(FUIActionBindingHandle ActionHandle);
+	UE_API void RemoveBindings(const TArray<FUIActionBindingHandle>& WidgetBindings);
+	UE_API void RemoveBinding(FUIActionBindingHandle ActionHandle);
 
 	bool HasHoldBindings() const { return HoldBindingsCount > 0; }
 
 	const TArray<FUIActionBindingHandle>& GetActionBindings() const { return ActionBindings; }
 	
 protected:
-	FActionRouterBindingCollection(UCommonUIActionRouterBase& OwningRouter);
-	virtual bool IsWidgetReachableForInput(const UWidget* Widget) const;
+	UE_API FActionRouterBindingCollection(UCommonUIActionRouterBase& OwningRouter);
+	UE_API virtual bool IsWidgetReachableForInput(const UWidget* Widget) const;
 
-	int32 GetOwnerUserIndex() const;
-	int32 GetOwnerControllerId() const;
+	UE_API int32 GetOwnerUserIndex() const;
+	UE_API int32 GetOwnerControllerId() const;
 	UCommonUIActionRouterBase& GetActionRouter() const { check(ActionRouterPtr.IsValid()); return *ActionRouterPtr; }
 	
-	void DebugDumpActionBindings(FString& OutputStr, int32 IndentSpaces) const;
+	UE_API void DebugDumpActionBindings(FString& OutputStr, int32 IndentSpaces) const;
 
 	/** The set of action bindings contained within this collection */
 	TArray<FUIActionBindingHandle> ActionBindings;
@@ -91,19 +93,19 @@ private:
 // FActivatableTreeNode
 //////////////////////////////////////////////////////////////////////////
 
-class COMMONUI_API FActivatableTreeNode : public FActionRouterBindingCollection
+class FActivatableTreeNode : public FActionRouterBindingCollection
 {
 public:
-	virtual ~FActivatableTreeNode();
+	UE_API virtual ~FActivatableTreeNode();
 	
-	virtual EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const override;
-	virtual bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const override;
+	UE_API virtual EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const override;
+	UE_API virtual bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const override;
 	virtual bool IsReceivingInput() const override { return bCanReceiveInput && IsWidgetActivated(); }
 
-	bool IsWidgetValid() const;
-	bool IsWidgetActivated() const;
-	bool DoesWidgetSupportActivationFocus() const;
-	void AppendAllActiveActions(TArray<FUIActionBindingHandle>& BoundActions) const;
+	UE_API bool IsWidgetValid() const;
+	UE_API bool IsWidgetActivated() const;
+	UE_API bool DoesWidgetSupportActivationFocus() const;
+	UE_API void AppendAllActiveActions(TArray<FUIActionBindingHandle>& BoundActions) const;
 
 	UCommonActivatableWidget* GetWidget() { return RepresentedWidget.Get(); }
 	const UCommonActivatableWidget* GetWidget() const { return RepresentedWidget.Get(); }
@@ -113,51 +115,55 @@ public:
 	
 	FActivatableTreeNodePtr GetParentNode() const { return Parent.Pin(); }
 	
-	FActivatableTreeNodeRef AddChildNode(UCommonActivatableWidget& InActivatableWidget);
-	void CacheFocusRestorationTarget();
+	UE_API FActivatableTreeNodeRef AddChildNode(UCommonActivatableWidget& InActivatableWidget);
+	UE_API void CacheFocusRestorationTarget();
 	void ClearFocusRestorationTarget() { FocusRestorationTarget.Reset(); }
-	TSharedPtr<SWidget> GetFocusFallbackTarget() const;
+	UE_API TSharedPtr<SWidget> GetFocusFallbackTarget() const;
 
-	bool IsExclusiveParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const;
+	UE_API bool IsExclusiveParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const;
+	enum EIsParentSearchType
+	{
+		ExcludeSelf,
+		IncludeSelf
+	};
+	UE_API bool IsParentOfWidget(const TSharedPtr<SWidget>& SlateWidget, EIsParentSearchType ParentSearchType) const;
 
-	int32 GetLastPaintLayer() const;
-	TOptional<FUIInputConfig> FindDesiredInputConfig() const;
-	TOptional<FUIInputConfig> FindDesiredActionDomainInputConfig() const;
-	FActivationMetadata FindActivationMetadata() const;
+	UE_API int32 GetLastPaintLayer() const;
+	UE_API TOptional<FUIInputConfig> FindDesiredInputConfig() const;
+	UE_API TOptional<FUIInputConfig> FindDesiredActionDomainInputConfig() const;
+	UE_API FActivationMetadata FindActivationMetadata() const;
 	
-	void SetCanReceiveInput(bool bInCanReceiveInput);
+	UE_API void SetCanReceiveInput(bool bInCanReceiveInput);
 	
-	void AddScrollRecipient(const UWidget& ScrollRecipient);
-	void RemoveScrollRecipient(const UWidget& ScrollRecipient);
-	void AddInputPreprocessor(const TSharedRef<IInputProcessor>& InputPreprocessor, const FInputPreprocessorRegistrationKey& RegistrationInfo);
+	UE_API void AddScrollRecipient(const UWidget& ScrollRecipient);
+	UE_API void RemoveScrollRecipient(const UWidget& ScrollRecipient);
+	UE_API void AddInputPreprocessor(const TSharedRef<IInputProcessor>& InputPreprocessor, const FInputPreprocessorRegistrationKey& RegistrationInfo);
 
 	FSimpleDelegate OnActivated;
 	FSimpleDelegate OnDeactivated;
 
 protected:
-	FActivatableTreeNode(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget);
-	FActivatableTreeNode(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget, const FActivatableTreeNodeRef& InParent);
+	UE_API FActivatableTreeNode(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget);
+	UE_API FActivatableTreeNode(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget, const FActivatableTreeNodeRef& InParent);
 
-	virtual bool IsWidgetReachableForInput(const UWidget* Widget) const override;
+	UE_API virtual bool IsWidgetReachableForInput(const UWidget* Widget) const override;
 	
 	bool CanReceiveInput() const { return bCanReceiveInput; }
-	virtual void Init();	
-	FActivatableTreeRootRef GetRoot() const;
+	UE_API virtual void Init();	
+	UE_API FActivatableTreeRootRef GetRoot() const;
 
-	void AppendValidScrollRecipients(TArray<const UWidget*>& AllScrollRecipients) const;
-	void DebugDumpRecursive(FString& OutputStr, int32 Depth, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const;
-	
-	bool IsParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const;
+	UE_API void AppendValidScrollRecipients(TArray<const UWidget*>& AllScrollRecipients) const;
+	UE_API void DebugDumpRecursive(FString& OutputStr, int32 Depth, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const;
 	
 private:
-	void HandleWidgetActivated();
-	void HandleWidgetDeactivated();
-	void HandleChildSlateReleased(UCommonActivatableWidget* ChildWidget);
+	UE_API void HandleWidgetActivated();
+	UE_API void HandleWidgetDeactivated();
+	UE_API void HandleChildSlateReleased(UCommonActivatableWidget* ChildWidget);
 	
-	void RegisterPreprocessors();
-	void UnregisterPreprocessors();
+	UE_API void RegisterPreprocessors();
+	UE_API void UnregisterPreprocessors();
 
-	bool DoesPathSupportActivationFocus() const;
+	UE_API bool DoesPathSupportActivationFocus() const;
 	
 #if !UE_BUILD_SHIPPING
 	FString DebugWidgetName;
@@ -180,29 +186,33 @@ private:
 // FActivatableTreeRoot
 //////////////////////////////////////////////////////////////////////////
 
-class COMMONUI_API FActivatableTreeRoot : public FActivatableTreeNode
+class FActivatableTreeRoot : public FActivatableTreeNode
 {
 public:
-	static FActivatableTreeRootRef Create(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget);
+	static UE_API FActivatableTreeRootRef Create(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget);
 	
-	void UpdateLeafNode();
+	UE_API void UpdateLeafNode();
 
-	TArray<const UWidget*> GatherScrollRecipients() const;
+	UE_API TArray<const UWidget*> GatherScrollRecipients() const;
 
-	bool UpdateLeafmostActiveNode(FActivatableTreeNodePtr BaseCandidateNode, bool bInApplyConfig = true);
+	UE_API bool UpdateLeafmostActiveNode(FActivatableTreeNodePtr BaseCandidateNode, bool bInApplyConfig = true);
 
-	void DebugDump(FString& OutputStr, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const;
+	UE_API void DebugDump(FString& OutputStr, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const;
 
 	FSimpleDelegate OnLeafmostActiveNodeChanged;
 
-	void FocusLeafmostNode();
+	UE_API void FocusLeafmostNode();
 
-	void RefreshCachedRestorationTarget();
+	UE_API void RefreshCachedRestorationTarget();
 
-	void ApplyLeafmostNodeConfig();
+	UE_API void ApplyLeafmostNodeConfig();
+
+	UE_API bool IsAnActionDomainRoot() const;
+	UE_API bool IsActiveActionDomainRoot() const;
+	UE_API bool CanSetInputConfigAndFocus() const;
 
 protected:
-	virtual void Init() override;
+	UE_API virtual void Init() override;
 
 private:
 	FActivatableTreeRoot(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget)
@@ -217,7 +227,4 @@ private:
 	TWeakPtr<FActivatableTreeNode> LeafmostActiveNode;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Input/CommonUIInputSettings.h"
-#include "Input/UIActionBinding.h"
-#endif
+#undef UE_API

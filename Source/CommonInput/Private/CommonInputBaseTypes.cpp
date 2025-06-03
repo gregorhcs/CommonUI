@@ -25,6 +25,60 @@ FCommonInputKeySetBrushConfiguration::FCommonInputKeySetBrushConfiguration()
 	KeyBrush.DrawAs = ESlateBrushDrawType::Image;
 }
 
+namespace CommonUIUtils
+{
+	bool TryGetInputBrushFromDataMap(FSlateBrush& OutBrush, const FKey& InKey, const TArray<FCommonInputKeyBrushConfiguration>& InInputBrushDataMap)
+	{
+		const FCommonInputKeyBrushConfiguration* DisplayConfig = InInputBrushDataMap.FindByPredicate([&InKey](const FCommonInputKeyBrushConfiguration& KeyBrushPair) -> bool
+		{
+			return KeyBrushPair.Key == InKey;
+		});
+
+		if (DisplayConfig)
+		{
+			OutBrush = DisplayConfig->GetInputBrush();
+			return true;
+		}
+
+		return false;
+	}
+
+	bool TryGetInputBrushFromKeySets(FSlateBrush& OutBrush, const TArray<FKey>& InKeys, const TArray<FCommonInputKeySetBrushConfiguration>& InInputBrushKeySets)
+	{
+
+		const FCommonInputKeySetBrushConfiguration* DisplayConfig = InInputBrushKeySets.FindByPredicate([&InKeys](const FCommonInputKeySetBrushConfiguration& KeyBrushPair) -> bool
+		{
+			if (KeyBrushPair.Keys.Num() < 2)
+			{
+				return false;
+			}
+
+			if (InKeys.Num() == KeyBrushPair.Keys.Num())
+			{
+				for (const FKey& Key : InKeys)
+				{
+					if (!KeyBrushPair.Keys.Contains(Key))
+					{
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			return false;
+		});
+
+		if (DisplayConfig)
+		{
+			OutBrush = DisplayConfig->GetInputBrush();
+			return true;
+		}
+
+		return false;
+	}
+}
+
 bool UCommonUIInputData::NeedsLoadForServer() const
 {
 	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
@@ -39,18 +93,7 @@ bool UCommonInputBaseControllerData::NeedsLoadForServer() const
 
 bool UCommonInputBaseControllerData::TryGetInputBrush(FSlateBrush& OutBrush, const FKey& Key) const
 {
-	const FCommonInputKeyBrushConfiguration* DisplayConfig = InputBrushDataMap.FindByPredicate([&Key](const FCommonInputKeyBrushConfiguration& KeyBrushPair) -> bool
-	{
-		return KeyBrushPair.Key == Key;
-	});
-
-	if (DisplayConfig)
-	{
-		OutBrush = DisplayConfig->GetInputBrush();
-		return true;
-	}
-
-	return false;
+	return CommonUIUtils::TryGetInputBrushFromDataMap(OutBrush, Key, InputBrushDataMap);
 }
 
 bool UCommonInputBaseControllerData::TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys) const
@@ -62,39 +105,10 @@ bool UCommonInputBaseControllerData::TryGetInputBrush(FSlateBrush& OutBrush, con
 
 	if (Keys.Num() == 1)
 	{
-		return TryGetInputBrush(OutBrush, Keys[0]);
+		return CommonUIUtils::TryGetInputBrushFromDataMap(OutBrush, Keys[0], InputBrushDataMap);
 	}
 
-	const FCommonInputKeySetBrushConfiguration* DisplayConfig = InputBrushKeySets.FindByPredicate([&Keys](const FCommonInputKeySetBrushConfiguration& KeyBrushPair) -> bool
-	{
-		if (KeyBrushPair.Keys.Num() < 2)
-		{
-			return false;
-		}
-
-		if (Keys.Num() == KeyBrushPair.Keys.Num())
-		{
-			for (const FKey& Key : Keys)
-			{
-				if (!KeyBrushPair.Keys.Contains(Key))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		return false;
-	});
-
-	if (DisplayConfig)
-	{
-		OutBrush = DisplayConfig->GetInputBrush();
-		return true;
-	}
-
-	return false;
+	return CommonUIUtils::TryGetInputBrushFromKeySets(OutBrush, Keys, InputBrushKeySets);
 }
 
 void UCommonInputBaseControllerData::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -234,6 +248,7 @@ void UCommonInputPlatformSettings::InitializeControllerData() const
 {
 	if (ControllerData.Num() != ControllerDataClasses.Num())
 	{
+		ControllerDataClasses.Reset();
 		for (TSoftClassPtr<UCommonInputBaseControllerData> ControllerDataPtr : ControllerData)
 		{
 			if (TSubclassOf<UCommonInputBaseControllerData> ControllerDataClass = ControllerDataPtr.LoadSynchronous())
@@ -273,15 +288,11 @@ bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, FKey 
 {
 	InitializeControllerData();
 
-	for (const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataPtr : ControllerDataClasses)
+	for (const UCommonInputBaseControllerData* DefaultControllerData: GetControllerDataForInputType(InputType, GamepadName))
 	{
-		const UCommonInputBaseControllerData* DefaultControllerData = ControllerDataPtr.GetDefaultObject();
-		if (DefaultControllerData && DefaultControllerData->InputType == InputType)
+		if (DefaultControllerData->TryGetInputBrush(OutBrush, Key))
 		{
-			if (DefaultControllerData->InputType != ECommonInputType::Gamepad || DefaultControllerData->GamepadName == GamepadName)
-			{
-				return DefaultControllerData->TryGetInputBrush(OutBrush, Key);
-			}
+			return true;
 		}
 	}
 
@@ -292,6 +303,22 @@ bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const
 {
 	InitializeControllerData();
 
+	for (const UCommonInputBaseControllerData* DefaultControllerData: GetControllerDataForInputType(InputType, GamepadName))
+	{
+		if (DefaultControllerData->TryGetInputBrush(OutBrush, Keys))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+TArray<const UCommonInputBaseControllerData*> UCommonInputPlatformSettings::GetControllerDataForInputType(ECommonInputType InputType, const FName GamepadName) const
+{
+	InitializeControllerData();
+
+	TArray<const UCommonInputBaseControllerData*> ControllerDataForInputType;
 	for (const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataPtr : ControllerDataClasses)
 	{
 		const UCommonInputBaseControllerData* DefaultControllerData = ControllerDataPtr.GetDefaultObject();
@@ -299,12 +326,41 @@ bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const
 		{
 			if (DefaultControllerData->InputType != ECommonInputType::Gamepad || DefaultControllerData->GamepadName == GamepadName)
 			{
-				return DefaultControllerData->TryGetInputBrush(OutBrush, Keys);
+				ControllerDataForInputType.Add(DefaultControllerData);
 			}
 		}
 	}
 
-	return false;
+	return ControllerDataForInputType;
+}
+
+void UCommonInputPlatformSettings::AddControllerDataEntry(TSoftClassPtr<UCommonInputBaseControllerData> Entry)
+{
+	if (ensure(!Entry.IsNull()))
+	{
+		ControllerData.AddUnique(Entry);
+		if (ControllerData.Num() == (ControllerDataClasses.Num() + 1))
+		{
+			if (TSubclassOf<UCommonInputBaseControllerData> ControllerDataClass = Entry.LoadSynchronous())
+			{
+				ControllerDataClasses.Add(ControllerDataClass);
+			}
+		}
+		else
+		{
+			InitializeControllerData();
+		}
+	}
+}
+
+void UCommonInputPlatformSettings::RemoveControllerDataEntry(TSoftClassPtr<UCommonInputBaseControllerData> Entry)
+{
+	ControllerData.RemoveAllSwap([&Entry](const TSoftClassPtr<UCommonInputBaseControllerData>& ControllerDataEntry) {
+		return ControllerDataEntry.GetUniqueID() == Entry.GetUniqueID();
+	});
+	ControllerDataClasses.RemoveAllSwap([&Entry](const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataClassEntry){
+		return ControllerDataClassEntry.Get() == Entry.GetUniqueID();
+	});
 }
 
 FName UCommonInputPlatformSettings::GetBestGamepadNameForHardware(FName CurrentGamepadName, FName InputDeviceName, const FString& HardwareDeviceIdentifier)
@@ -346,17 +402,14 @@ bool UCommonInputPlatformSettings::SupportsInputType(ECommonInputType InputType)
 	{
 		return bSupportsMouseAndKeyboard;
 	}
-	break;
 	case ECommonInputType::Gamepad:
 	{
 		return bSupportsGamepad;
 	}
-	break;
 	case ECommonInputType::Touch:
 	{
 		return bSupportsTouch;
 	}
-	break;
 	}
 	return false;
 }
@@ -369,6 +422,13 @@ void UCommonInputPlatformSettings::PostEditChangeProperty(struct FPropertyChange
 	ControllerDataClasses.Reset();
 }
 #endif
+
+void UCommonInputPlatformSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
+{
+	Super::PostReloadConfig(PropertyThatWasLoaded);
+
+	ControllerDataClasses.Reset();
+}
 
 bool FCommonInputPlatformBaseData::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const
 {

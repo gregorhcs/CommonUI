@@ -46,12 +46,6 @@ public:
 			CommonButton->SetIsSelectable(SelectionMode != ESelectionMode::None);
 			CommonButton->SetIsInteractableWhenSelected(SelectionMode != ESelectionMode::None);
 
-			CommonButton->OnClicked().AddSP(this, &SCommonButtonTableRow::HandleButtonClicked);
-			CommonButton->OnDoubleClicked().AddSP(this, &SCommonButtonTableRow::HandleButtonDoubleClicked);
-			CommonButton->OnHovered().AddSP(this, &SCommonButtonTableRow::HandleButtonHovered);
-			CommonButton->OnUnhovered().AddSP(this, &SCommonButtonTableRow::HandleButtonUnhovered);
-			CommonButton->OnIsSelectedChanged().AddSP(this, &SCommonButtonTableRow::HandleButtonSelectionChanged);
-
 			CommonButton->SetTouchMethod(EButtonTouchMethod::PreciseTap);
 		}
 	}
@@ -70,6 +64,12 @@ protected:
 
 		if (UCommonButtonBase* CommonButton = Cast<UCommonButtonBase>(this->WidgetObject))
 		{
+			CommonButton->OnClicked().AddSP(this, &SCommonButtonTableRow::HandleButtonClicked);
+			CommonButton->OnDoubleClicked().AddSP(this, &SCommonButtonTableRow::HandleButtonDoubleClicked);
+			CommonButton->OnHovered().AddSP(this, &SCommonButtonTableRow::HandleButtonHovered);
+			CommonButton->OnUnhovered().AddSP(this, &SCommonButtonTableRow::HandleButtonUnhovered);
+			CommonButton->OnIsSelectedChanged().AddSP(this, &SCommonButtonTableRow::HandleButtonSelectionChanged);
+
 			if (this->IsItemSelectable())
 			{
 				const bool bIsItemSelected = this->IsItemSelected();
@@ -90,11 +90,37 @@ protected:
 	{
 		SObjectTableRow<ItemType>::ResetObjectRow();
 
-		UCommonButtonBase* CommonButton = Cast<UCommonButtonBase>(this->WidgetObject);
-		if (CommonButton && CommonButton->GetSelected())
+		if (UCommonButtonBase* CommonButton = Cast<UCommonButtonBase>(this->WidgetObject))
 		{
-			// Quietly deselect the button to reset its visual state
-			CommonButton->SetSelectedInternal(false, false, false);
+			CommonButton->OnClicked().RemoveAll(this);
+			CommonButton->OnDoubleClicked().RemoveAll(this);
+			CommonButton->OnHovered().RemoveAll(this);
+			CommonButton->OnUnhovered().RemoveAll(this);
+			CommonButton->OnIsSelectedChanged().RemoveAll(this);
+
+			if (CommonButton->GetSelected())
+			{
+				// Quietly deselect the button to reset its visual state
+				CommonButton->SetSelectedInternal(false, false, false);
+			}
+		}
+	}
+
+	virtual void DetectItemSelectionChanged() override
+	{
+		SObjectTableRow<ItemType>::DetectItemSelectionChanged();
+		
+		TSharedRef<ITypedTableView<ItemType>> OwnerTable = this->OwnerTablePtr.Pin().ToSharedRef();
+		if (const TObjectPtrWrapTypeOf<ItemType>* MyItemPtr = this->GetItemForThis(OwnerTable))
+		{
+			// Selection changes at the list level can happen directly or in response to another item being selected.
+			// Regardless, just make sure the button's selection state is inline with the item's
+			const UCommonButtonBase* CommonButton = Cast<UCommonButtonBase>(this->WidgetObject);
+			const bool bIsItemSelected = OwnerTable->Private_IsItemSelected(*MyItemPtr);
+			if (CommonButton && CommonButton->GetSelected() != bIsItemSelected)
+			{
+				OnItemSelectionChanged(bIsItemSelected);
+			}
 		}
 	}
 

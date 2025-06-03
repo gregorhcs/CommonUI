@@ -9,6 +9,10 @@
 
 #include "CommonInputActionDomain.generated.h"
 
+#define UE_API COMMONINPUT_API
+
+class UCommonInputActionDomain;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogUIActionDomain, Log, All);
 
 UENUM()
@@ -36,8 +40,8 @@ public:
  * flow between widgets within the domain and Behavior determines how events will flow to
  * other Domains in the DomainTable.
  */
-UCLASS()
-class COMMONINPUT_API UCommonInputActionDomain : public UDataAsset
+UCLASS(MinimalAPI)
+class UCommonInputActionDomain : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -51,25 +55,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputEventFlowBehavior InnerBehavior = ECommonInputEventFlowBehavior::BlockIfHandled;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Default" )
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	bool bUseActionDomainDesiredInputConfig;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	UPROPERTY(EditDefaultsOnly, Category = "Default", meta = (EditCondition = "bUseActionDomainDesiredInputConfig"))
 	ECommonInputMode InputMode = ECommonInputMode::Game;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	UPROPERTY(EditDefaultsOnly, Category = "Default", meta = (EditCondition = "bUseActionDomainDesiredInputConfig"))
 	EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
 
-	bool ShouldBreakInnerEventFlow(bool bInputEventHandled) const;
+	UE_API bool ShouldBreakInnerEventFlow(bool bInputEventHandled) const;
 
-	bool ShouldBreakEventFlow(bool bDomainHadActiveRoots, bool bInputEventHandledAtLeastOnce) const;
+	UE_API bool ShouldBreakEventFlow(bool bDomainHadActiveRoots, bool bInputEventHandledAtLeastOnce) const;
 };
 
 /**
  * An ordered array of ActionDomains.
  */
-UCLASS()
-class COMMONINPUT_API UCommonInputActionDomainTable : public UDataAsset
+UCLASS(MinimalAPI)
+class UCommonInputActionDomainTable : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -84,3 +88,5 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
 };
+
+#undef UE_API

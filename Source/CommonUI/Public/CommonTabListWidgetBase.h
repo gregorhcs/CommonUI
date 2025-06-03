@@ -8,6 +8,8 @@
 
 #include "CommonTabListWidgetBase.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonAnimatedSwitcher;
 
 class UCommonButtonBase;
@@ -25,6 +27,10 @@ public:
 	UPROPERTY()
 	int32 TabIndex;
 	
+	/** The class of our TabButton widget */
+	UPROPERTY()
+	TSubclassOf<UCommonButtonBase> TabButtonClass;
+	
 	/** The actual button widget that represents this tab on-screen */
 	UPROPERTY()
 	TObjectPtr<UCommonButtonBase> TabButton;
@@ -41,8 +47,8 @@ public:
 };
 
 /** Base class for a list of selectable tabs that correspondingly activate and display an arbitrary widget in a linked switcher */
-UCLASS(Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI", DisableNativeTick))
-class COMMONUI_API UCommonTabListWidgetBase : public UCommonUserWidget
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI", DisableNativeTick))
+class UCommonTabListWidgetBase : public UCommonUserWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -84,11 +90,11 @@ public:
 	 * @param CommonSwitcher The switcher that this tab list should be associated with and manipulate
 	 */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	virtual void SetLinkedSwitcher(UCommonAnimatedSwitcher* CommonSwitcher);
+	UE_API virtual void SetLinkedSwitcher(UCommonAnimatedSwitcher* CommonSwitcher);
 
 	/** @return The switcher that this tab list is associated with and manipulates */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = TabList)
-	UCommonAnimatedSwitcher* GetLinkedSwitcher() const;
+	UE_API UCommonAnimatedSwitcher* GetLinkedSwitcher() const;
 
 	/**
 	 * Registers and adds a new tab to the list that corresponds to a given widget instance. If not present in the linked switcher, it will be added.
@@ -99,80 +105,91 @@ public:
 	 * @return True if the new tab registered successfully and there were no name ID conflicts
 	 */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	bool RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget, const int32 TabIndex = -1 /*INDEX_NONE*/);
+	UE_API bool RegisterTab(FName TabNameID, TSubclassOf<UCommonButtonBase> ButtonWidgetType, UWidget* ContentWidget, const int32 TabIndex = -1 /*INDEX_NONE*/);
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	bool RemoveTab(FName TabNameID);
+	UE_API bool RemoveTab(FName TabNameID);
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	void RemoveAllTabs();
+	UE_API void RemoveAllTabs();
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	int32 GetTabCount() const;
+	UE_API int32 GetTabCount() const;
 
 	/** 
 	 * Selects the tab registered under the provided name ID
 	 * @param TabNameID The name ID for the tab given when registered
 	 */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	bool SelectTabByID(FName TabNameID, bool bSuppressClickFeedback = false );
+	UE_API bool SelectTabByID(FName TabNameID, bool bSuppressClickFeedback = false );
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	FName GetSelectedTabId() const;
+	UE_API FName GetSelectedTabId() const;
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	FName GetTabIdAtIndex(int32 Index) const;
+	UE_API FName GetTabIdAtIndex(int32 Index) const;
 
 	/** Sets the visibility of the tab associated with the given ID  */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	void SetTabVisibility(FName TabNameID, ESlateVisibility NewVisibility);
+	UE_API void SetTabVisibility(FName TabNameID, ESlateVisibility NewVisibility);
 
 	/** Sets whether the tab associated with the given ID is enabled/disabled */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	void SetTabEnabled(FName TabNameID, bool bEnable);
+	UE_API void SetTabEnabled(FName TabNameID, bool bEnable);
 
 	/** Sets whether the tab associated with the given ID is interactable */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	void SetTabInteractionEnabled(FName TabNameID, bool bEnable);
+	UE_API void SetTabInteractionEnabled(FName TabNameID, bool bEnable);
 
 	/** Disables the tab associated with the given ID with a reason */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	void DisableTabWithReason(FName TabNameID, const FText& Reason);
+	UE_API void DisableTabWithReason(FName TabNameID, const FText& Reason);
 
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	virtual void SetListeningForInput(bool bShouldListen);
+	UE_API virtual void SetListeningForInput(bool bShouldListen);
 
 	/** Returns the tab button matching the ID, if found */
 	UFUNCTION(BlueprintCallable, Category = TabList)
-	UCommonButtonBase* GetTabButtonBaseByID(FName TabNameID) const;
+	UE_API UCommonButtonBase* GetTabButtonBaseByID(FName TabNameID) const;
+
+	/** Checks if a tab has an associated content widget */
+	UFUNCTION(BlueprintCallable, Category = "Tab List")
+	UE_API bool HasTabContentWidget(const FName TabNameId) const;
+
+	/** Registers a content widget with a previously created tab with ID TabNameId. If a linked switcher has been setup, it will also be added to it */
+	UFUNCTION(BlueprintCallable, Category = "Tab List")
+	UE_API bool RegisterTabContentWidget(const FName TabNameId, UWidget* ContentWidget);
+
+	/** Allows one to temporarily disable the selection-required behavior TabButtonGroup, useful during initialization and destruction of a UCommonTabListWidgetBase */
+	UE_API void SetSelectionRequired(bool bSelectionRequired);
 
 protected:
 	// UUserWidget interface
-	virtual void NativeOnInitialized() override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void NativeOnInitialized() override;
+	UE_API virtual void NativeConstruct() override;
+	UE_API virtual void NativeDestruct() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End UUserWidget
 
-	virtual void UpdateBindings();
+	UE_API virtual void UpdateBindings();
 
-	bool IsRebuildingList() const;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = TabList, meta = (BlueprintProtected = "true"))
-	void HandlePreLinkedSwitcherChanged_BP();
-
-	virtual void HandlePreLinkedSwitcherChanged();
+	UE_API bool IsRebuildingList() const;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = TabList, meta = (BlueprintProtected = "true"))
-	void HandlePostLinkedSwitcherChanged_BP();
+	UE_API void HandlePreLinkedSwitcherChanged_BP();
 
-	virtual void HandlePostLinkedSwitcherChanged();
+	UE_API virtual void HandlePreLinkedSwitcherChanged();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = TabList, meta = (BlueprintProtected = "true"))
+	UE_API void HandlePostLinkedSwitcherChanged_BP();
+
+	UE_API virtual void HandlePostLinkedSwitcherChanged();
 
 	UFUNCTION(BlueprintNativeEvent, Category = TabList, meta = (BlueprintProtected = "true"))
-	void HandleTabCreation(FName TabNameID, UCommonButtonBase* TabButton);
+	UE_API void HandleTabCreation(FName TabNameID, UCommonButtonBase* TabButton);
 
 	UFUNCTION(BlueprintNativeEvent, Category = TabList, meta = (BlueprintProtected = "true"))
-	void HandleTabRemoval(FName TabNameID, UCommonButtonBase* TabButton);
+	UE_API void HandleTabRemoval(FName TabNameID, UCommonButtonBase* TabButton);
 
 	/** The input action to listen for causing the next tab to be selected */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
@@ -194,6 +211,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (ExposeOnSpawn = "true"))
 	bool bAutoListenForInput;
 
+	/** Whether pressing next/prev tab on the last/first tab should wrap selection to the beginning/end or stay at the end/beginning. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (ExposeOnSpawn = "true"))
+	bool bShouldWrapNavigation = true;
+
 	/**
 	* Whether to defer until next tick rebuilding tab list when inserting new tab (rather than adding to the end).
 	* Useful if inserting multiple tabs in the same tick as the tab list will only be rebuilt once.
@@ -202,16 +223,16 @@ protected:
 	bool bDeferRebuildingTabList;
 
 protected:
-	const TMap<FName, FCommonRegisteredTabInfo>& GetRegisteredTabsByID() const;
+	UE_API const TMap<FName, FCommonRegisteredTabInfo>& GetRegisteredTabsByID() const;
 
 	UFUNCTION()
-	void HandleTabButtonSelected(UCommonButtonBase* SelectedTabButton, int32 ButtonIndex);
+	UE_API void HandleTabButtonSelected(UCommonButtonBase* SelectedTabButton, int32 ButtonIndex);
 
 	UFUNCTION()
-	void HandlePreviousTabInputAction(bool& bPassthrough);
+	UE_API void HandlePreviousTabInputAction(bool& bPassthrough);
 	
 	UFUNCTION()
-	void HandleNextTabInputAction(bool& bPassthrough);
+	UE_API void HandleNextTabInputAction(bool& bPassthrough);
 
 	/** The activatable widget switcher that this tab list is associated with and manipulates */
 	UPROPERTY(Transient)
@@ -225,13 +246,13 @@ protected:
 	bool bIsListeningForInput = false;
 
 private:
-	void HandleNextTabAction();
-	void HandlePreviousTabAction();
+	UE_API void HandleNextTabAction();
+	UE_API void HandlePreviousTabAction();
 
-	bool DeferredRebuildTabList(float DeltaTime);
-	void RebuildTabList();
+	UE_API bool DeferredRebuildTabList(float DeltaTime);
+	UE_API void RebuildTabList();
 
-	void RemoveTab_Internal(const FName TabNameID, const FCommonRegisteredTabInfo& TabInfo);
+	UE_API void RemoveTab_Internal(const FName TabNameID, const FCommonRegisteredTabInfo& TabInfo);
 
 	/** Info about each of the currently registered tabs organized by a given registration name ID */
 	UPROPERTY(Transient)
@@ -250,6 +271,4 @@ private:
 	FUIActionBindingHandle PrevTabActionHandle;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#endif
+#undef UE_API

@@ -7,6 +7,8 @@
 #include "CommonInputTypeEnum.h"
 #include "CommonUITypes.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "Engine/LocalPlayer.h"
+#include "EnhancedInputSubsystems.h"
 #include "Input/UIActionBinding.h"
 #include "InputAction.h"
 #include "InputTriggers.h"
@@ -159,8 +161,8 @@ UCommonInputSubsystem* UCommonActionWidget::GetInputSubsystem() const
 {
 	// In the new system, we may be representing an action for any player, not necessarily the one that technically owns this action icon widget
 	// We want to be sure to use the LocalPlayer that the binding is actually for so we can display the icon that corresponds to their current input method
-	const UWidget* BoundWidget = DisplayedBindingHandle.GetBoundWidget();
-	const ULocalPlayer* BindingOwner = BoundWidget ? BoundWidget->GetOwningLocalPlayer() : GetOwningLocalPlayer();
+	const ULocalPlayer* BoundLocalPlayer = DisplayedBindingHandle.GetBoundLocalPlayer();
+	const ULocalPlayer* BindingOwner = BoundLocalPlayer ? BoundLocalPlayer : GetOwningLocalPlayer();
 	return UCommonInputSubsystem::Get(BindingOwner);
 }
 
@@ -183,7 +185,7 @@ FText UCommonActionWidget::GetDisplayText() const
 	}
 
 	const UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
-	if (GetGameInstance() && ensure(CommonInputSubsystem))
+	if (GetGameInstance() && CommonInputSubsystem)
 	{
 		if (const FCommonInputActionDataBase* InputActionData = GetInputActionData())
 		{
@@ -227,7 +229,7 @@ bool UCommonActionWidget::IsHeldAction() const
 	{
 		for (const TObjectPtr<UInputTrigger>& Trigger : EnhancedInputAction->Triggers)
 		{
-			if (EnumHasAnyFlags(Trigger->GetSupportedTriggerEvents(), ETriggerEventsSupported::Ongoing))
+			if (Trigger != nullptr && EnumHasAnyFlags(Trigger->GetSupportedTriggerEvents(), ETriggerEventsSupported::Ongoing))
 			{
 				return true;
 			}
@@ -237,7 +239,7 @@ bool UCommonActionWidget::IsHeldAction() const
 	}
 
 	const UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
-	if (GetGameInstance() && ensure(CommonInputSubsystem))
+	if (GetGameInstance() && CommonInputSubsystem)
 	{
 		if (const FCommonInputActionDataBase* InputActionData = GetInputActionData())
 		{
@@ -253,13 +255,19 @@ void UCommonActionWidget::SetEnhancedInputAction(UInputAction* InInputAction)
 {
 	UpdateBindingHandleInternal(FUIActionBindingHandle());
 	EnhancedInputAction = InInputAction;
+	InputActions.Reset();
 	UpdateActionWidget();
+}
+
+const UInputAction* UCommonActionWidget::GetEnhancedInputAction() const
+{
+	return EnhancedInputAction;
 }
 
 void UCommonActionWidget::SetInputAction(FDataTableRowHandle InputActionRow)
 {
 	UpdateBindingHandleInternal(FUIActionBindingHandle());
-	
+	EnhancedInputAction = nullptr;
 	InputActions.Reset();
 	InputActions.Add(InputActionRow);
 
@@ -271,16 +279,18 @@ void UCommonActionWidget::SetInputActionBinding(FUIActionBindingHandle BindingHa
 	UpdateBindingHandleInternal(BindingHandle);
 	if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
 	{
-		if (CommonUI::IsEnhancedInputSupportEnabled())
-		{
-			if (const UInputAction* InputAction = Binding->InputAction.Get())
-			{
-				EnhancedInputAction = const_cast<UInputAction*>(InputAction);
-			}
-		}
-
 		InputActions.Reset();
-		InputActions.Add(Binding->LegacyActionTableRow);
+
+		const UInputAction* InputAction = Binding->InputAction.Get();
+		if (CommonUI::IsEnhancedInputSupportEnabled() && InputAction)
+		{
+			EnhancedInputAction = const_cast<UInputAction*>(InputAction);
+		}
+		else
+		{
+			EnhancedInputAction = nullptr;
+			InputActions.Add(Binding->LegacyActionTableRow);
+		}
 
 		UpdateActionWidget();
 	}
@@ -289,6 +299,7 @@ void UCommonActionWidget::SetInputActionBinding(FUIActionBindingHandle BindingHa
 void UCommonActionWidget::SetInputActions(TArray<FDataTableRowHandle> InInputActions)
 {
 	UpdateBindingHandleInternal(FUIActionBindingHandle());
+	EnhancedInputAction = nullptr;
 	InputActions = InInputActions;
 
 	UpdateActionWidget();
@@ -322,7 +333,7 @@ void UCommonActionWidget::UpdateActionWidget()
 	if (GetWorld())
 	{
 		const UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
-		if (IsDesignTime() || (GetGameInstance() && ensure(CommonInputSubsystem) && CommonInputSubsystem->ShouldShowInputKeys()))
+		if (IsDesignTime() || (GetGameInstance() && CommonInputSubsystem && CommonInputSubsystem->ShouldShowInputKeys()))
 		{
 			if (ShouldUpdateActionWidgetIcon())
 			{
@@ -347,16 +358,22 @@ void UCommonActionWidget::UpdateActionWidget()
 						MyIcon->Invalidate(EInvalidateWidgetReason::Layout);
 					}
 
-					if (IsHeldAction())
+					if (MyProgressImage.IsValid())
 					{
-						MyProgressImage->SetVisibility(EVisibility::SelfHitTestInvisible);
-					}
-					else
-					{
-						MyProgressImage->SetVisibility(EVisibility::Collapsed);
+						if (IsHeldAction())
+						{
+							MyProgressImage->SetVisibility(EVisibility::SelfHitTestInvisible);
+						}
+						else
+						{
+							MyProgressImage->SetVisibility(EVisibility::Collapsed);
+						}
 					}
 
-					MyKeyBox->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+					if (MyKeyBox.IsValid())
+					{
+						MyKeyBox->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+					}
 
 					if (!IsDesignTime())
 					{
@@ -404,12 +421,34 @@ void UCommonActionWidget::ListenToInputMethodChanged(bool bListen)
 			CommonInputSubsystem->OnInputMethodChangedNative.AddUObject(this, &ThisClass::HandleInputMethodChanged);
 		}
 	}
+
+	if (CommonUI::IsEnhancedInputSupportEnabled())
+	{	
+		const ULocalPlayer* BoundLocalPlayer = DisplayedBindingHandle.GetBoundLocalPlayer();
+     	const ULocalPlayer* LocalPlayer = BoundLocalPlayer ? BoundLocalPlayer : GetOwningLocalPlayer();
+		if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+		{
+			if (bListen)
+			{
+				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.AddUniqueDynamic(this, &UCommonActionWidget::OnEnhancedInputMappingsRebuilt);
+			}
+			else
+			{
+				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.RemoveDynamic(this, &UCommonActionWidget::OnEnhancedInputMappingsRebuilt);
+			}
+		}
+	}
 }
 
 void UCommonActionWidget::HandleInputMethodChanged(ECommonInputType InInputType)
 {
 	UpdateActionWidget();
 	OnInputMethodChanged.Broadcast(InInputType==ECommonInputType::Gamepad);
+}
+
+void UCommonActionWidget::OnEnhancedInputMappingsRebuilt()
+{
+	UpdateActionWidget();
 }
 
 #if WITH_EDITOR
@@ -451,7 +490,10 @@ void UCommonActionWidget::SetProgressMaterial(const FSlateBrush& InProgressMater
 		ProgressDynamicMaterial = nullptr;
 	}
 
-	MyProgressImage->SetImage(&ProgressMaterialBrush);
+	if (MyProgressImage.IsValid())
+	{
+		MyProgressImage->SetImage(&ProgressMaterialBrush);
+	}
 }
 
 void UCommonActionWidget::SetHidden(bool bAlwaysHidden)

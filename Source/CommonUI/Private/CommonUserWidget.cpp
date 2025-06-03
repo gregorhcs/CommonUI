@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "CommonInputSubsystem.h"
 #include "CommonUISubsystemBase.h"
+#include "CommonWidgetPaletteCategories.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
 
@@ -206,4 +207,9 @@ void UCommonUserWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-
+#if WITH_EDITOR
+const FText UCommonUserWidget::GetPaletteCategory()
+{
+	return CommonWidgetPaletteCategories::Default;
+}
+#endif // WITH_EDITOR

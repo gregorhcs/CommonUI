@@ -6,38 +6,42 @@
 #include "Misc/Optional.h"
 #include "UIActionBindingHandle.generated.h"
 
+#define UE_API COMMONUI_API
+
 enum class EMouseCaptureMode : uint8;
 enum class EMouseLockMode : uint8;
 struct FScriptContainerElement;
-
+class ULocalPlayer;
 class UWidget;
 enum class ECommonInputMode : uint8;
 
 USTRUCT(BlueprintType, DisplayName = "UI Action Binding Handle")
-struct COMMONUI_API FUIActionBindingHandle
+struct FUIActionBindingHandle
 {
 	GENERATED_BODY()
 
 public:
-	bool IsValid() const;
-	void Unregister();
+	UE_API bool IsValid() const;
+	UE_API void Unregister();
 
 	/** Calls ResetHold() on the Action Binding, which in turn resets the hold progress to 0.0  */
-	void ResetHold();
+	UE_API void ResetHold();
 
-	FName GetActionName() const;
+	UE_API FName GetActionName() const;
 
-	FText GetDisplayName() const;
-
-	/** Should not be called often as broadcasts UCommonUIActionRouterBase::OnBoundActionsUpdated event */
-	void SetDisplayName(const FText& DisplayName);
-
-	bool GetDisplayInActionBar() const;
+	UE_API FText GetDisplayName() const;
 
 	/** Should not be called often as broadcasts UCommonUIActionRouterBase::OnBoundActionsUpdated event */
-	void SetDisplayInActionBar(const bool bDisplayInActionBar);
+	UE_API void SetDisplayName(const FText& DisplayName);
 
-	const UWidget* GetBoundWidget() const;
+	UE_API bool GetDisplayInActionBar() const;
+
+	/** Should not be called often as broadcasts UCommonUIActionRouterBase::OnBoundActionsUpdated event */
+	UE_API void SetDisplayInActionBar(const bool bDisplayInActionBar);
+
+	UE_API const UWidget* GetBoundWidget() const;
+	
+	UE_API ULocalPlayer* GetBoundLocalPlayer() const;
 
 	FUIActionBindingHandle() {}
 	bool operator==(const FUIActionBindingHandle& Other) const { return RegistrationId == Other.RegistrationId; }
@@ -73,7 +77,7 @@ private:
  */
 struct FActivationMetadata
 {
-	COMMONUI_API FActivationMetadata() { }
+	FActivationMetadata() { }
 	FActivationMetadata(uint8 InMetadataEnum) : MetadataEnum(InMetadataEnum) {}
 
 	TOptional<uint8> GetMetadataEnum() const { return MetadataEnum; }
@@ -87,7 +91,7 @@ private:
  * UI-only input, move / look ignore, etc), to be controlled by widget activation.
  */
 USTRUCT(BlueprintType)
-struct COMMONUI_API FUIInputConfig
+struct FUIInputConfig
 {
 	GENERATED_BODY()
 
@@ -96,9 +100,9 @@ struct COMMONUI_API FUIInputConfig
 	EMouseLockMode GetMouseLockMode() const { return MouseLockMode; }
 	bool HideCursorDuringViewportCapture() const { return bHideCursorDuringViewportCapture; }
 
-	FUIInputConfig();
-	FUIInputConfig(ECommonInputMode InInputMode, EMouseCaptureMode InMouseCaptureMode, bool bInHideCursorDuringViewportCapture = true);
-	FUIInputConfig(ECommonInputMode InInputMode, EMouseCaptureMode InMouseCaptureMode, EMouseLockMode InMouseLockMode, bool bInHideCursorDuringViewportCapture = true);
+	UE_API FUIInputConfig();
+	UE_API FUIInputConfig(ECommonInputMode InInputMode, EMouseCaptureMode InMouseCaptureMode, bool bInHideCursorDuringViewportCapture = true);
+	UE_API FUIInputConfig(ECommonInputMode InInputMode, EMouseCaptureMode InMouseCaptureMode, EMouseLockMode InMouseLockMode, bool bInHideCursorDuringViewportCapture = true);
 
 	bool operator==(const FUIInputConfig& Other) const
 	{
@@ -122,7 +126,7 @@ struct COMMONUI_API FUIInputConfig
 	bool bIgnoreLookInput = false;
 
 	/** Simplification of config as string */
-	FString ToString() const;
+	UE_API FString ToString() const;
 
 protected:
 
@@ -141,7 +145,4 @@ protected:
 	bool bHideCursorDuringViewportCapture = true;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#include "Engine/EngineBaseTypes.h"
-#endif
+#undef UE_API

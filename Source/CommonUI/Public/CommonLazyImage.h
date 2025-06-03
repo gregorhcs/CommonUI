@@ -7,6 +7,8 @@
 
 #include "CommonLazyImage.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UTexture;
 
 class UCommonMcpItemDefinition;
@@ -19,32 +21,32 @@ class UCommonMcpItemDefinition;
  * 
  * If this class changes to show any text, by default it will have CoreStyle styling
  */
-UCLASS()
-class COMMONUI_API UCommonLazyImage : public UImage
+UCLASS(MinimalAPI)
+class UCommonLazyImage : public UImage
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void SetBrush(const FSlateBrush& InBrush) override;
-	virtual void SetBrushFromAsset(USlateBrushAsset* Asset) override;
-	virtual void SetBrushFromTexture(UTexture2D* Texture, bool bMatchSize = false) override;
-	virtual void SetBrushFromTextureDynamic(UTexture2DDynamic* Texture, bool bMatchSize = false) override;
-	virtual void SetBrushFromMaterial(UMaterialInterface* Material) override;
+	UE_API virtual void SetBrush(const FSlateBrush& InBrush) override;
+	UE_API virtual void SetBrushFromAsset(USlateBrushAsset* Asset) override;
+	UE_API virtual void SetBrushFromTexture(UTexture2D* Texture, bool bMatchSize = false) override;
+	UE_API virtual void SetBrushFromTextureDynamic(UTexture2DDynamic* Texture, bool bMatchSize = false) override;
+	UE_API virtual void SetBrushFromMaterial(UMaterialInterface* Material) override;
 
 	/** Set the brush from a lazy texture asset pointer - will load the texture as needed. */
 	UFUNCTION(BlueprintCallable, Category = LazyImage)
-	void SetBrushFromLazyTexture(const TSoftObjectPtr<UTexture2D>& LazyTexture, bool bMatchSize = false);
+	UE_API void SetBrushFromLazyTexture(const TSoftObjectPtr<UTexture2D>& LazyTexture, bool bMatchSize = false);
 
 	/** Set the brush from a lazy material asset pointer - will load the material as needed. */
 	UFUNCTION(BlueprintCallable, Category = LazyImage)
-	void SetBrushFromLazyMaterial(const TSoftObjectPtr<UMaterialInterface>& LazyMaterial);
+	UE_API void SetBrushFromLazyMaterial(const TSoftObjectPtr<UMaterialInterface>& LazyMaterial);
 	
 	/** Set the brush from a string asset ref only - expects the referenced asset to be a texture or material. */
 	UFUNCTION(BlueprintCallable, Category = LazyImage)
-	void SetBrushFromLazyDisplayAsset(const TSoftObjectPtr<UObject>& LazyObject, bool bMatchTextureSize = false);
+	UE_API void SetBrushFromLazyDisplayAsset(const TSoftObjectPtr<UObject>& LazyObject, bool bMatchTextureSize = false);
 
 	UFUNCTION(BlueprintCallable, Category = LazyImage)
-	bool IsLoading() const;
+	UE_API bool IsLoading() const;
 
 	/**
 	 * Establishes the name of the texture parameter on the currently applied brush material to which textures should be applied.
@@ -54,35 +56,35 @@ public:
 	 * You must call this function again after doing so if the new material has a texture param.
 	 */
 	UFUNCTION(BlueprintCallable, Category = LazyImage)
-	void SetMaterialTextureParamName(FName TextureParamName);
+	UE_API void SetMaterialTextureParamName(FName TextureParamName);
 
 	FOnLoadGuardStateChangedEvent& OnLoadingStateChanged() { return OnLoadingStateChangedEvent; }
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override final;
-	virtual void OnWidgetRebuilt() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override final;
+	UE_API virtual void OnWidgetRebuilt() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SynchronizeProperties() override;
 
-	virtual void CancelImageStreaming() override;
-	virtual void OnImageStreamingStarted(TSoftObjectPtr<UObject> SoftObject) override;
-	virtual void OnImageStreamingComplete(TSoftObjectPtr<UObject> LoadedSoftObject) override;
+	UE_API virtual void CancelImageStreaming() override;
+	UE_API virtual void OnImageStreamingStarted(TSoftObjectPtr<UObject> SoftObject) override;
+	UE_API virtual void OnImageStreamingComplete(TSoftObjectPtr<UObject> LoadedSoftObject) override;
 
-	virtual TSharedRef<SWidget> RebuildImageWidget();
+	UE_API virtual TSharedRef<SWidget> RebuildImageWidget();
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UE_API virtual const FText GetPaletteCategory() override;
+	UE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif	
 
-	void SetIsLoading(bool bIsLoading);
+	UE_API void SetIsLoading(bool bIsLoading);
 
 private:
-	void HandleLoadGuardStateChanged(bool bIsLoading);
-	void ShowDefaultImage();
+	UE_API void HandleLoadGuardStateChanged(bool bIsLoading);
+	UE_API void ShowDefaultImage();
 
-	void SetBrushObjectInternal(UMaterialInterface* Material);
-	void SetBrushObjectInternal(UTexture* Texture, bool bMatchSize = false);
+	UE_API void SetBrushObjectInternal(UMaterialInterface* Material);
+	UE_API void SetBrushObjectInternal(UTexture* Texture, bool bMatchSize = false);
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = LoadPreview)
@@ -91,6 +93,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	FSlateBrush LoadingBackgroundBrush;
+
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	FSlateBrush LoadingThrobberBrush;
 
 	/** 
 	 * If this image uses a material that a texture should be applied to, this is the name of the material param to use.
@@ -106,3 +111,5 @@ private:
 	TSharedPtr<SLoadGuard> MyLoadGuard;
 	FOnLoadGuardStateChangedEvent OnLoadingStateChangedEvent;
 };
+
+#undef UE_API

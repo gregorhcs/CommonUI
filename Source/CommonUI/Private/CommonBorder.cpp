@@ -174,7 +174,7 @@ const UCommonBorderStyle* UCommonBorder::GetStyleCDO() const
 {
 	if (Style)
 	{
-		if (const UCommonBorderStyle* BorderStyle = Cast<UCommonBorderStyle>(Style->ClassDefaultObject))
+		if (const UCommonBorderStyle* BorderStyle = Cast<UCommonBorderStyle>(Style->GetDefaultObject(false)))
 		{
 			return BorderStyle;
 		}

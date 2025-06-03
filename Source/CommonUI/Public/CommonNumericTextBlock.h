@@ -5,13 +5,16 @@
 #include "CommonTextBlock.h"
 #include "CommonNumericTextBlock.generated.h"
 
+#define UE_API COMMONUI_API
+
 USTRUCT(BlueprintType)
-struct COMMONUI_API FCommonNumberFormattingOptions
+struct FCommonNumberFormattingOptions
 {
 	GENERATED_BODY()
 
 	FCommonNumberFormattingOptions()
 		: RoundingMode(ERoundingMode::HalfFromZero)
+		, AlwaysSign(false)
 		, UseGrouping(true)
 		, MinimumIntegralDigits(FNumberFormattingOptions::DefaultNoGrouping().MinimumIntegralDigits)
 		, MaximumIntegralDigits(FNumberFormattingOptions::DefaultNoGrouping().MaximumIntegralDigits)
@@ -22,7 +25,11 @@ struct COMMONUI_API FCommonNumberFormattingOptions
 	// The rounding mode to be used when the actual value can not be precisely represented due to restrictions on the number of integral or fractional digits. See values for details.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeral Formating")
 	TEnumAsByte<ERoundingMode> RoundingMode;
-	
+
+	// Should the numerals always display the sign. IE: "+1"
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeral Formating")
+	bool AlwaysSign;
+
 	// Should the numerals use group separators. IE: "1,000,000"
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeral Formating")
 	bool UseGrouping;
@@ -56,33 +63,33 @@ enum class ECommonNumericType : uint8
 /**
  * Numeric text block that provides interpolation, and some type support (numbers, percents, seconds, distance).
  */
-UCLASS(BlueprintType)
-class COMMONUI_API UCommonNumericTextBlock : public UCommonTextBlock
+UCLASS(MinimalAPI, BlueprintType)
+class UCommonNumericTextBlock : public UCommonTextBlock
 {
 	GENERATED_BODY()
 
 public:
-	UCommonNumericTextBlock(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonNumericTextBlock(const FObjectInitializer& ObjectInitializer);
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	UE_API virtual void Serialize(FArchive& Ar) override;
+	UE_API virtual void PostLoad() override;
 
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const;
+	UE_API virtual bool CanEditChange(const FProperty* InProperty) const;
 
-	const FText GetPaletteCategory() override;
+	UE_API const FText GetPaletteCategory() override;
 #endif // WITH_EDITOR
 
-	virtual void SynchronizeProperties() override;
+	UE_API virtual void SynchronizeProperties() override;
 
 	// Returns the value this widget will ultimately show if it is interpolating, or the current value if it is not.
 	UFUNCTION(BlueprintCallable, Category = "Numeric Text Block")
-	float GetTargetValue() const;
+	UE_API float GetTargetValue() const;
 
 	// Sets the current numeric value. NOTE: Cancels any ongoing interpolation!
 	UFUNCTION(BlueprintCallable, Category = "Numeric Text Block")
-	void SetCurrentValue(const float NewValue);
+	UE_API void SetCurrentValue(const float NewValue);
 
 	/**
 	 * Starts an ongoing process of interpolating the current numeric value to the specified target value.
@@ -95,10 +102,10 @@ public:
 	 * OutroDuration				The time offset, in seconds, *before* the end of the InterpolationDuration elapses, at which to trigger an outro event. Must be less than or equal to MaximumInterpolationDuration
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Numeric Interpolation")
-	void InterpolateToValue(const float TargetValue, float MaximumInterpolationDuration = 3.0f, float MinimumChangeRate = 1.0f, float OutroOffset = 0.0f);
+	UE_API void InterpolateToValue(const float TargetValue, float MaximumInterpolationDuration = 3.0f, float MinimumChangeRate = 1.0f, float OutroOffset = 0.0f);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Numeric Interpolation")
-	bool IsInterpolatingNumericValue() const;
+	UE_API bool IsInterpolatingNumericValue() const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInterpolationStarted, UCommonNumericTextBlock*, NumericTextBlock);
 	// Event triggered when interpolation has started.
@@ -125,7 +132,7 @@ public:
 	float CurrentNumericValue;
 
 	UFUNCTION(BlueprintCallable, Category = "Numeral Formating")
-	void SetNumericType(ECommonNumericType InNumericType);
+	UE_API void SetNumericType(ECommonNumericType InNumericType);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeral Formating")
 	ECommonNumericType NumericType;
@@ -155,8 +162,8 @@ public:
 
 protected:
 	
-	void UpdateUnderlyingText();
-	virtual FText FormatText(float InCurrentNumericValue, const FNumberFormattingOptions& InNumberFormattingOptions) const;
+	UE_API void UpdateUnderlyingText();
+	UE_API virtual FText FormatText(float InCurrentNumericValue, const FNumberFormattingOptions& InNumberFormattingOptions) const;
 
 private:
 	FNumberFormattingOptions MakeNumberFormattingOptions() const;
@@ -218,7 +225,4 @@ private:
 	} SizeInterpolationState;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUserWidget.h"
-#include "Tickable.h"
-#endif
+#undef UE_API

@@ -7,6 +7,8 @@
 
 #include "SCommonAnimatedSwitcher.generated.h"
 
+#define UE_API COMMONUI_API
+
 UENUM(BlueprintType)
 enum class ECommonSwitcherTransition : uint8
 {
@@ -70,7 +72,7 @@ static FORCEINLINE ECurveEaseFunction TransitionCurveToCurveEaseFunction(ETransi
 	}
 }
 
-class COMMONUI_API SCommonAnimatedSwitcher : public SWidgetSwitcher
+class SCommonAnimatedSwitcher : public SWidgetSwitcher
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnActiveIndexChanged, int32);
@@ -98,16 +100,18 @@ public:
 	SLATE_END_ARGS()
 	
 public:
-	void Construct(const FArguments& InArgs);
+	UE_API void Construct(const FArguments& InArgs);
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	void TransitionToIndex(int32 NewWidgetIndex, bool bInstantTransition = false);
+	UE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	UE_API void TransitionToIndex(int32 NewWidgetIndex, bool bInstantTransition = false);
 
-	FSlot* GetChildSlot(int32 SlotIndex);
+	UE_API FSlot* GetChildSlot(int32 SlotIndex);
 
-	void SetTransition(float Duration, ETransitionCurve Curve);
+	UE_API void SetTransition(float Duration, ETransitionCurve Curve);
+	UE_API void SetTransition(float Duration, ETransitionCurve Curve, ECommonSwitcherTransition NewTransitionType);
+	UE_API void SetTransitionType(ECommonSwitcherTransition NewTransitionType);
 
-	bool IsTransitionPlaying() const;
+	UE_API bool IsTransitionPlaying() const;
 	
 	TWeakPtr<SWidget> GetPendingActiveWidget() const { return PendingActiveWidget; }
 	int32 GetPendingActiveWidgetIndex() const { return PendingActiveWidgetIndex; }
@@ -117,15 +121,15 @@ public:
 	bool IsTransitionFallbackEnabled() const { return TransitionFallbackStrategy != ECommonSwitcherTransitionFallbackStrategy::None; }
 
 protected:
-	virtual void OnSlotAdded(int32 AddedIndex) override;
-	virtual void OnSlotRemoved(int32 RemovedIndex, TSharedRef<SWidget> RemovedWidget, bool bWasActiveSlot) override;
+	UE_API virtual void OnSlotAdded(int32 AddedIndex) override;
+	UE_API virtual void OnSlotRemoved(int32 RemovedIndex, TSharedRef<SWidget> RemovedWidget, bool bWasActiveSlot) override;
 	
 private:
-	EActiveTimerReturnType UpdateTransition(double InCurrentTime, float InDeltaTime);
-	float GetTransitionProgress() const;
-	int32 GetTransitionFallbackForIndex(int32 RemovedWidgetIndex) const;
-	bool TryTransitionFallbackOfPendingWidget();
-	bool TryTransitionFallbackOfActiveWidget(int32 RemovedWidgetIndex);
+	UE_API EActiveTimerReturnType UpdateTransition(double InCurrentTime, float InDeltaTime);
+	UE_API float GetTransitionProgress() const;
+	UE_API int32 GetTransitionFallbackForIndex(int32 RemovedWidgetIndex) const;
+	UE_API bool TryTransitionFallbackOfPendingWidget();
+	UE_API bool TryTransitionFallbackOfActiveWidget(int32 RemovedWidgetIndex);
 
 private:
 	/** Anim sequence for the transition; plays twice per transition */
@@ -149,3 +153,5 @@ private:
 	FOnActiveIndexChanged OnActiveIndexChanged;
 	FOnIsTransitioningChanged OnIsTransitioningChanged;
 };
+
+#undef UE_API

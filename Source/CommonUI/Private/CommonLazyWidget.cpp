@@ -4,6 +4,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "Engine/AssetManager.h"
+#include "Widgets/Images/SImage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLazyWidget)
 
@@ -11,12 +12,14 @@ UCommonLazyWidget::UCommonLazyWidget(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
 	LoadingBackgroundBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
+	LoadingThrobberBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
 TSharedRef<SWidget> UCommonLazyWidget::RebuildWidget()
 {
 	MyLoadGuard = SNew(SLoadGuard)
+		.Throbber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr))
 		.GuardBackgroundBrush(&LoadingBackgroundBrush)
 		.OnLoadingStateChanged_UObject(this, &ThisClass::HandleLoadGuardStateChanged)
 		[
@@ -40,12 +43,17 @@ void UCommonLazyWidget::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
-#if WITH_EDITOR
-	if (IsDesignTime() && MyLoadGuard.IsValid())
+	if (MyLoadGuard.IsValid())
 	{
-		MyLoadGuard->SetForceShowSpinner(true);
-	}
+		MyLoadGuard->SetThrobber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr));
+
+#if WITH_EDITOR
+		if (IsDesignTime())
+		{
+			MyLoadGuard->SetForceShowSpinner(true);
+		}
 #endif
+	}
 }
 
 void UCommonLazyWidget::SetForceShowSpinner(bool bShowLoading)

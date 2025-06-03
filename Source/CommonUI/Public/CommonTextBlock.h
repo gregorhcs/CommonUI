@@ -7,6 +7,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "CommonTextBlock.generated.h"
 
+#define UE_API COMMONUI_API
+
 struct FTextBlockStyle;
 struct FTextScrollerOptions;
 
@@ -16,13 +18,13 @@ class STextScroller;
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  * We return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
  */
-UCLASS(Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonTextStyle : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
+class UCommonTextStyle : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UCommonTextStyle();
+	UE_API UCommonTextStyle();
 
 	/** The font to apply at each size */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Font")
@@ -61,45 +63,45 @@ public:
 	bool ApplyLineHeightToBottomLine;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetFont(FSlateFontInfo& OutFont) const;
+	UE_API void GetFont(FSlateFontInfo& OutFont) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetColor(FLinearColor& OutColor) const;
+	UE_API void GetColor(FLinearColor& OutColor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetMargin(FMargin& OutMargin) const;
+	UE_API void GetMargin(FMargin& OutMargin) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	float GetLineHeightPercentage() const;
+	UE_API float GetLineHeightPercentage() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	bool GetApplyLineHeightToBottomLine() const;
+	UE_API bool GetApplyLineHeightToBottomLine() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetShadowOffset(FVector2D& OutShadowOffset) const;
+	UE_API void GetShadowOffset(FVector2D& OutShadowOffset) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetShadowColor(FLinearColor& OutColor) const;
+	UE_API void GetShadowColor(FLinearColor& OutColor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text Style|Getters")
-	void GetStrikeBrush(FSlateBrush& OutStrikeBrush) const;
+	UE_API void GetStrikeBrush(FSlateBrush& OutStrikeBrush) const;
 
-	void ToTextBlockStyle(FTextBlockStyle& OutTextBlockStyle) const;
+	UE_API void ToTextBlockStyle(FTextBlockStyle& OutTextBlockStyle) const;
 
-	void ApplyToTextBlock(const TSharedRef<STextBlock>& TextBlock) const;
+	UE_API void ApplyToTextBlock(const TSharedRef<STextBlock>& TextBlock) const;
 };
 
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  * We return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
  */
-UCLASS(Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonTextScrollStyle : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
+class UCommonTextScrollStyle : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	FTextScrollerOptions ToScrollOptions() const;
+	UE_API FTextScrollerOptions ToScrollOptions() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	float Speed;
@@ -123,65 +125,68 @@ public:
 /**
  * Text block with automatic scrolling for FX / large texts, also supports a larger set of default styling, & custom mobile scaling.
  */
-UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Text", PrioritizeCategories = "Content"))
-class COMMONUI_API UCommonTextBlock : public UTextBlock
+UCLASS(MinimalAPI, Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Text", PrioritizeCategories = "Content"))
+class UCommonTextBlock : public UTextBlock
 {
 	GENERATED_UCLASS_BODY()
 public:
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void PostInitProperties() override;
+	UE_API virtual void PostLoad() override;
+	UE_API virtual void Serialize(FArchive& Ar) override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetWrapTextWidth(int32 InWrapTextAt);
+	UE_API void SetWrapTextWidth(int32 InWrapTextAt);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetTextCase(bool bUseAllCaps);
+	UE_API void SetTextCase(bool bUseAllCaps);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetLineHeightPercentage(float InLineHeightPercentage);
+	UE_API void SetLineHeightPercentage(float InLineHeightPercentage);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetApplyLineHeightToBottomLine(bool InApplyLineHeightToBottomLine);
+	UE_API void SetApplyLineHeightToBottomLine(bool InApplyLineHeightToBottomLine);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetStyle(TSubclassOf<UCommonTextStyle> InStyle);
+	UE_API void SetStyle(TSubclassOf<UCommonTextStyle> InStyle);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	const FMargin& GetMargin();
+	UE_API void SetScrollOrientation(TEnumAsByte<EOrientation> InScrollOrientation);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
-	void SetMargin(const FMargin& InMargin);
+	UE_API const FMargin& GetMargin();
+
+	UFUNCTION(BlueprintCallable, Category = "Common Text")
+	UE_API void SetMargin(const FMargin& InMargin);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Mobile")
-	float GetMobileFontSizeMultiplier() const;
+	UE_API float GetMobileFontSizeMultiplier() const;
 	
 	/** Sets the new value and then applies the FontSizeMultiplier */
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Mobile")
-	void SetMobileFontSizeMultiplier(float InMobileFontSizeMultiplier);
+	UE_API void SetMobileFontSizeMultiplier(float InMobileFontSizeMultiplier);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
-	void ResetScrollState();
+	UE_API void ResetScrollState();
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
-	void SetScrollingEnabled(bool bInIsScrollingEnabled);
+	UE_API void SetScrollingEnabled(bool bInIsScrollingEnabled);
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void SynchronizeProperties() override;
 
-	virtual void OnTextChanged() override;
-	virtual void OnFontChanged() override;
+	UE_API virtual void OnTextChanged() override;
+	UE_API virtual void OnFontChanged() override;
 
 	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float MobileFontSizeMultiplier = 1.0f;
 	
 #if WITH_EDITOR
-	virtual void OnCreationFromPalette() override;
-	const FText GetPaletteCategory() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const;
+	UE_API virtual void OnCreationFromPalette() override;
+	UE_API const FText GetPaletteCategory() override;
+	UE_API virtual bool CanEditChange(const FProperty* InProperty) const;
 #endif // WITH_EDITOR
 
 private:
@@ -204,6 +209,10 @@ private:
 	/** References the scroll style asset to use, no reference disables scrolling*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
+	
+	/** The orientation the text will scroll if out of bounds. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	TEnumAsByte<EOrientation> ScrollOrientation = Orient_Horizontal;
 
 #if WITH_EDITORONLY_DATA
 	/** Used to track widgets that were created before changing the default style pointer to null */
@@ -220,7 +229,4 @@ private:
 	void ApplyFontSizeMultiplier() const;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "Widgets/Layout/SScrollBox.h"
-#endif
+#undef UE_API

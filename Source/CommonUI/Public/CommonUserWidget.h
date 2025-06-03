@@ -7,6 +7,8 @@
 
 #include "CommonUserWidget.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonInputSubsystem;
 class UCommonUISubsystemBase;
 class FSlateUser;
@@ -15,23 +17,23 @@ struct FUIActionTag;
 struct FBindUIActionArgs;
 enum class ECommonInputMode : uint8;
 
-UCLASS(ClassGroup = UI, meta = (Category = "Common UI", DisableNativeTick))
-class COMMONUI_API UCommonUserWidget : public UUserWidget
+UCLASS(MinimalAPI, ClassGroup = UI, meta = (Category = "Common UI", DisableNativeTick))
+class UCommonUserWidget : public UUserWidget
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Sets whether or not this widget will consume ALL pointer input that reaches it */
 	UFUNCTION(BlueprintCallable, Category = CommonUserWidget)
-	void SetConsumePointerInput(bool bInConsumePointerInput);
+	UE_API void SetConsumePointerInput(bool bInConsumePointerInput);
 
 	/** Add a widget to the list of widgets to get scroll events for this input root node */
 	UFUNCTION(BlueprintCallable, Category = CommonUserWidget)
-	void RegisterScrollRecipientExternal(const UWidget* AnalogScrollRecipient);
+	UE_API void RegisterScrollRecipientExternal(const UWidget* AnalogScrollRecipient);
 
 	/** Remove a widget from the list of widgets to get scroll events for this input root node */
 	UFUNCTION(BlueprintCallable, Category = CommonUserWidget)
-	void UnregisterScrollRecipientExternal(const UWidget* AnalogScrollRecipient);
+	UE_API void UnregisterScrollRecipientExternal(const UWidget* AnalogScrollRecipient);
 
 public:
 
@@ -42,27 +44,29 @@ public:
 	 * Convenience methods for menu action registrations (any UWidget can register via FCommonUIActionRouter directly, though generally that shouldn't be needed).
 	 * Persistent bindings are *always* listening for input while registered, while normal bindings are only listening when all of this widget's activatable parents are activated.
 	 */
-	FUIActionBindingHandle RegisterUIActionBinding(const FBindUIActionArgs& BindActionArgs);
+	UE_API FUIActionBindingHandle RegisterUIActionBinding(const FBindUIActionArgs& BindActionArgs);
 
-	void RemoveActionBinding(FUIActionBindingHandle ActionBinding);
-	void AddActionBinding(FUIActionBindingHandle ActionBinding);
+	UE_API void RemoveActionBinding(FUIActionBindingHandle ActionBinding);
+	UE_API void AddActionBinding(FUIActionBindingHandle ActionBinding);
 
 protected:
-	virtual void OnWidgetRebuilt() override;
-	virtual void NativeDestruct() override;
+	virtual ERequiresLegacyPlayer GetLegacyPlayerRequirement() const override { return ERequiresLegacyPlayer::No; }
+
+	UE_API virtual void OnWidgetRebuilt() override;
+	UE_API virtual void NativeDestruct() override;
 	
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnTouchGesture(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
-	virtual FReply NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
-	virtual FReply NativeOnTouchMoved(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
-	virtual FReply NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	UE_API virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	UE_API virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	UE_API virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	UE_API virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	UE_API virtual FReply NativeOnTouchGesture(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	UE_API virtual FReply NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	UE_API virtual FReply NativeOnTouchMoved(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
+	UE_API virtual FReply NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
 	
-	UCommonInputSubsystem* GetInputSubsystem() const;
-	UCommonUISubsystemBase* GetUISubsystem() const;
-	TSharedPtr<FSlateUser> GetOwnerSlateUser() const;
+	UE_API UCommonInputSubsystem* GetInputSubsystem() const;
+	UE_API UCommonUISubsystemBase* GetUISubsystem() const;
+	UE_API TSharedPtr<FSlateUser> GetOwnerSlateUser() const;
 
 	template <typename GameInstanceT = UGameInstance>
 	GameInstanceT& GetGameInstanceChecked() const
@@ -80,8 +84,12 @@ protected:
 		return *PC;
 	}
 
-	void RegisterScrollRecipient(const UWidget& AnalogScrollRecipient);
-	void UnregisterScrollRecipient(const UWidget& AnalogScrollRecipient);
+	UE_API void RegisterScrollRecipient(const UWidget& AnalogScrollRecipient);
+	UE_API void UnregisterScrollRecipient(const UWidget& AnalogScrollRecipient);
+
+#if WITH_EDITOR
+	UE_API virtual const FText GetPaletteCategory() override;
+#endif // WITH_EDITOR
 
 	/** True to generally display this widget's actions in the action bar, assuming it has actions. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = true))
@@ -99,6 +107,4 @@ private:
 	TArray<TWeakObjectPtr<const UWidget>> ScrollRecipients;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#endif
+#undef UE_API

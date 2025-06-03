@@ -38,8 +38,3 @@ private:
 
 	TWeakObjectPtr<UCommonVideoPlayer> VideoPlayer;
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "PropertyEditorModule.h"
-#include "Types/SlateEnums.h"
-#endif

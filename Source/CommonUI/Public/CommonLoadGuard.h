@@ -4,9 +4,12 @@
 
 #include "Components/ContentWidget.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "CommonLoadGuard.generated.h"
+
+#define UE_API COMMONUI_API
 
 struct FStreamableHandle;
 struct FTextBlockStyle;
@@ -22,16 +25,18 @@ class SBorder;
 DECLARE_DELEGATE_OneParam(FOnLoadGuardStateChanged, bool);
 DECLARE_DELEGATE_OneParam(FOnLoadGuardAssetLoaded, UObject*);
 
-class COMMONUI_API SLoadGuard : public SCompoundWidget
+class SLoadGuard : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SLoadGuard)
 		: _ThrobberHAlign(HAlign_Center)
+		, _Throbber(nullptr)
 		, _GuardTextStyle(nullptr)
 		, _GuardBackgroundBrush(nullptr)
 	{}
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	
 		SLATE_ARGUMENT(EHorizontalAlignment, ThrobberHAlign)
+		SLATE_ARGUMENT(TSharedPtr<SWidget>, Throbber)
 		SLATE_ARGUMENT(FText, GuardText)
 		SLATE_ARGUMENT(TSubclassOf<UCommonTextStyle>, GuardTextStyle)
 		SLATE_ARGUMENT(const FSlateBrush*, GuardBackgroundBrush)
@@ -40,24 +45,25 @@ class COMMONUI_API SLoadGuard : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
-	SLoadGuard();
-	void Construct(const FArguments& InArgs);
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	UE_API SLoadGuard();
+	UE_API void Construct(const FArguments& InArgs);
+	UE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	void SetForceShowSpinner(bool bInForceShowSpinner);
+	UE_API void SetForceShowSpinner(bool bInForceShowSpinner);
 	bool IsLoading() const { return bIsShowingSpinner; }
 	
-	void SetContent(const TSharedRef<SWidget>& InContent);
-	void SetThrobberHAlign(EHorizontalAlignment InHAlign);
-	void SetGuardText(const FText& InText);
-	void SetGuardTextStyle(const FTextBlockStyle& InGuardTextStyle);
-	void SetGuardBackgroundBrush(const FSlateBrush* InGuardBackground);
+	UE_API void SetContent(const TSharedRef<SWidget>& InContent);
+	UE_API void SetThrobberHAlign(EHorizontalAlignment InHAlign);
+	UE_API void SetThrobber(const TSharedPtr<SWidget>& InThrobber);
+	UE_API void SetGuardText(const FText& InText);
+	UE_API void SetGuardTextStyle(const FTextBlockStyle& InGuardTextStyle);
+	UE_API void SetGuardBackgroundBrush(const FSlateBrush* InGuardBackground);
 
 	/**
 	 * Displays the loading spinner until the asset is loaded
 	 * Will pass a casted pointer to the given asset in the lambda callback - could be nullptr if you provide an incompatible type or invalid asset.
 	 */
-	void GuardAndLoadAsset(const TSoftObjectPtr<UObject>& InLazyAsset, FOnLoadGuardAssetLoaded OnAssetLoaded);
+	UE_API void GuardAndLoadAsset(const TSoftObjectPtr<UObject>& InLazyAsset, FOnLoadGuardAssetLoaded OnAssetLoaded);
 
 	template <typename ObjectType>
 	void GuardAndLoadAsset(const TSoftObjectPtr<UObject>& InLazyAsset, TFunction<void(ObjectType*)> OnAssetLoaded)
@@ -70,13 +76,14 @@ public:
 	TSharedRef<SBorder> GetContentBorder() const { return ContentBorder.ToSharedRef(); };
 
 private:
-	void UpdateLoadingAppearance();
+	UE_API void UpdateLoadingAppearance();
 
 	TSoftObjectPtr<UObject> LazyAsset;
 
 	TSharedPtr<SBorder> ContentBorder;
 	TSharedPtr<SBorder> GuardBorder;
 	TSharedPtr<STextBlock> GuardTextBlock;
+	SHorizontalBox::FSlot* ThrobberSlot = nullptr;
 
 	FOnLoadGuardStateChanged OnLoadingStateChanged;
 
@@ -90,25 +97,25 @@ private:
 //////////////////////////////////////////////////////////////////////////
 
 /** Virtually identical to a UBorderSlot, but unfortunately that assumes (fairly) that its parent widget is a UBorder. */
-UCLASS()
-class COMMONUI_API ULoadGuardSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class ULoadGuardSlot : public UPanelSlot
 {
 	GENERATED_BODY()
 
 public:
-	virtual void SynchronizeProperties() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SynchronizeProperties() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	
-	void BuildSlot(TSharedRef<SLoadGuard> InLoadGuard);
+	UE_API void BuildSlot(TSharedRef<SLoadGuard> InLoadGuard);
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|LoadGuard Slot")
-	void SetPadding(FMargin InPadding);
+	UE_API void SetPadding(FMargin InPadding);
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|LoadGuard Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UE_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|LoadGuard Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UE_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Layout|LoadGuard Slot")
@@ -140,32 +147,32 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadGuardStateChangedDynamic, boo
  * Use GuardAndLoadAsset to automatically display the loading state until the asset is loaded (then the content widget will be displayed).
  * For other applications (ex: waiting for an async backend call to complete), you can manually set the loading state of the guard.
  */
-UCLASS(Config = Game, DefaultConfig)
-class COMMONUI_API UCommonLoadGuard : public UContentWidget
+UCLASS(MinimalAPI, Config = Game, DefaultConfig)
+class UCommonLoadGuard : public UContentWidget
 {
 	GENERATED_BODY()
 
 public:
-	UCommonLoadGuard(const FObjectInitializer& Initializer);
+	UE_API UCommonLoadGuard(const FObjectInitializer& Initializer);
 
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
+	UE_API virtual void PostLoad() override;
+	UE_API virtual void Serialize(FArchive& Ar) override;
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SynchronizeProperties() override;
 
 	virtual UClass* GetSlotClass() const override { return ULoadGuardSlot::StaticClass(); }
-	virtual void OnSlotAdded(UPanelSlot* NewSlot) override;
-	virtual void OnSlotRemoved(UPanelSlot* OldSlot) override;
+	UE_API virtual void OnSlotAdded(UPanelSlot* NewSlot) override;
+	UE_API virtual void OnSlotRemoved(UPanelSlot* OldSlot) override;
 
 	UFUNCTION(BlueprintCallable, Category = LoadGuard)
-	void SetLoadingText(const FText& InLoadingText);
+	UE_API void SetLoadingText(const FText& InLoadingText);
 	
 	UFUNCTION(BlueprintCallable, Category = LoadGuard)
-	void SetIsLoading(bool bInIsLoading);
+	UE_API void SetIsLoading(bool bInIsLoading);
 
 	UFUNCTION(BlueprintCallable, Category = LoadGuard)
-	bool IsLoading() const;
+	UE_API bool IsLoading() const;
 
 	/**
 	 * Displays the loading spinner until the asset is loaded
@@ -191,14 +198,14 @@ public:
 	FOnLoadGuardStateChangedEvent& OnLoadingStateChanged() { return OnLoadingStateChangedEvent; }
 
 #if WITH_EDITOR
-	virtual void OnCreationFromPalette() override;
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual void OnCreationFromPalette() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnAssetLoaded, UObject*, Object);
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;	
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;	
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = LoadGuard)
@@ -207,19 +214,23 @@ protected:
 
 private:
 	UFUNCTION(BlueprintCallable, Category = LoadGuard, meta = (DisplayName = "Guard and Load Asset", ScriptName="GuardAndLoadAsset", AllowPrivateAccess = true))
-	void BP_GuardAndLoadAsset(const TSoftObjectPtr<UObject>& InLazyAsset, const FOnAssetLoaded& OnAssetLoaded);
+	UE_API void BP_GuardAndLoadAsset(const TSoftObjectPtr<UObject>& InLazyAsset, const FOnAssetLoaded& OnAssetLoaded);
 
-	void HandleLoadingStateChanged(bool bIsLoading);
+	UE_API void HandleLoadingStateChanged(bool bIsLoading);
 
 	/** The background brush to display while loading the content */
 	UPROPERTY(EditAnywhere, Category = LoadGuardThrobber)
 	FSlateBrush LoadingBackgroundBrush;
 
+	/** The loading throbber brush */
+	UPROPERTY(EditAnywhere, Category = LoadGuardThrobber)
+	FSlateBrush LoadingThrobberBrush;
+
 	/** The horizontal alignment of the loading throbber & message */
 	UPROPERTY(EditAnywhere, Category = LoadGuardThrobber)
 	TEnumAsByte<EHorizontalAlignment> ThrobberAlignment;
 
-	/** The horizontal alignment of the loading throbber & message */
+	/** The padding of the loading throbber & message */
 	UPROPERTY(EditAnywhere, Category = LoadGuardThrobber)
 	FMargin ThrobberPadding;
 
@@ -248,10 +259,4 @@ private:
 	FOnLoadGuardStateChangedEvent OnLoadingStateChangedEvent;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Animation/CurveSequence.h"
-#include "CommonUITypes.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
-#include "ICommonUIModule.h"
-#endif
+#undef UE_API

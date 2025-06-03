@@ -18,6 +18,7 @@
 #include "Widgets/SViewport.h"
 #include "CommonButtonBase.h"
 #include "CommonUIEditorSettings.h"
+#include "Engine/GameInstance.h"
 #include "ICommonUIModule.h"
 
 DEFINE_LOG_CATEGORY(LogUIActionRouter);
@@ -109,9 +110,11 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 	, InputEvent(BindArgs.KeyEvent)
 	, bConsumesInput(BindArgs.bConsumeInput)
 	, bIsPersistent(BindArgs.bIsPersistent)
+	, PriorityWithinCollection(BindArgs.PriorityWithinCollection)
 	, BoundWidget(&InBoundWidget)
 	, InputMode(BindArgs.InputMode)
 	, bDisplayInActionBar(BindArgs.bDisplayInActionBar)
+	, InputTypesExemptFromValidKeyCheck(BindArgs.InputTypesExemptFromValidKeyCheck)
 	, ActionDisplayName(BindArgs.OverrideDisplayName)
 	, OnExecuteAction(BindArgs.OnExecuteAction)
 	, Handle(IdCounter++)
@@ -155,6 +158,11 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 	}
 	else if (CommonUI::IsEnhancedInputSupportEnabled() && BindArgs.InputAction.IsValid())
 	{
+		if (ActionDisplayName.IsEmpty())
+		{
+			ActionDisplayName = BindArgs.InputAction->ActionDescription;
+		}
+
 		// Nothing else to do if we have an enhanced input action,
 		// the input action itself will be queried against for keys later
 	}
@@ -206,6 +214,13 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 
 FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs)
 {
+	const ULocalPlayer* OwningPlayer = InBoundWidget.GetOwningLocalPlayer();
+	const int32 UserIndex = OwningPlayer ? OwningPlayer->GetLocalPlayerIndex() : INDEX_NONE;
+	return TryCreate(InBoundWidget, BindArgs, UserIndex);
+}
+
+FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs, int32 UserIndex)
+{
 	bool bIsEnhancedInputSupportEnabled = CommonUI::IsEnhancedInputSupportEnabled();
 	if (BindArgs.GetActionName().IsNone() && (!bIsEnhancedInputSupportEnabled || !BindArgs.InputAction.IsValid()))
 	{
@@ -227,9 +242,14 @@ FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget,
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided legacy data table row does not resolve to valid data."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
 		return FUIActionBindingHandle();
 	}
-	else if (bIsEnhancedInputSupportEnabled && !BindArgs.InputAction.IsValid())
+	else if (!BindArgs.ActionTag.IsValid() && BindArgs.LegacyActionTableRow.IsNull() && bIsEnhancedInputSupportEnabled && !BindArgs.InputAction.IsValid())
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided input action is invalid."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
+		return FUIActionBindingHandle();
+	}
+	else if (UserIndex == INDEX_NONE)
+	{
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] [%s] - invalid UserIndex."), *BindArgs.GetActionName().ToString(), InputEventToString(BindArgs.KeyEvent), *InBoundWidget.GetName());
 		return FUIActionBindingHandle();
 	}
 	
@@ -238,15 +258,17 @@ FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget,
 	{
 		if (HandleBindingPair.Value->ActionName == BindArgs.GetActionName() &&
 			HandleBindingPair.Value->InputEvent == BindArgs.KeyEvent &&
-			HandleBindingPair.Value->BoundWidget.Get() == &InBoundWidget)
+			HandleBindingPair.Value->BoundWidget.Get() == &InBoundWidget &&
+			HandleBindingPair.Value->UserIndex == UserIndex)
 		{
-			UE_LOG(LogUIActionRouter, Error, TEXT("Widget [%s] is already bound to action [%s] [%s]! A given widget can only bind the same action once. Unregister existing binding first if you wish to change any aspect of the binding"), 
-				*InBoundWidget.GetName(), *HandleBindingPair.Value->ActionName.ToString(), InputEventToString(BindArgs.KeyEvent));
+			UE_LOG(LogUIActionRouter, Error, TEXT("Widget [%s] is already bound to action [%s] [%s] for user [%d]! A given widget can only bind the same action once per user. Unregister existing binding first if you wish to change any aspect of the binding"), 
+				*InBoundWidget.GetName(), *HandleBindingPair.Value->ActionName.ToString(), InputEventToString(BindArgs.KeyEvent), UserIndex);
 			return FUIActionBindingHandle();
 		}
 	}
 	
 	TSharedPtr<FUIActionBinding> NewRegistration = MakeShareable(new FUIActionBinding(InBoundWidget, BindArgs));
+	NewRegistration->UserIndex = UserIndex;
 	FUIActionBindingHandle Handle = NewRegistration->Handle;
 	AllRegistrationsByHandle.Add(Handle, MoveTemp(NewRegistration));
 
@@ -486,14 +508,6 @@ FText FUIActionBindingHandle::GetDisplayName() const
 	{
 		if (const UCommonInputSubsystem* CommonInputSubsystem = Binding->BoundWidget.IsValid() ? UCommonInputSubsystem::Get(Binding->BoundWidget->GetOwningLocalPlayer()) : nullptr)
 		{
-			if (CommonUI::IsEnhancedInputSupportEnabled())
-			{
-				if (const TObjectPtr<const UInputAction> InputAction = Binding->InputAction.Get())
-				{
-					return InputAction->ActionDescription;
-				}
-			}
-
 			const ECommonInputType CurrentInputType = CommonInputSubsystem->GetCurrentInputType();
 
 			for (const FUIActionKeyMapping& HoldMapping : Binding->HoldMappings)
@@ -572,6 +586,26 @@ const UWidget* FUIActionBindingHandle::GetBoundWidget() const
 	return nullptr;
 }
 
+ULocalPlayer* FUIActionBindingHandle::GetBoundLocalPlayer() const
+{
+	if (TSharedPtr<const FUIActionBinding> Binding = FUIActionBinding::FindBinding(*this))
+	{
+		if (const UWidget* BoundWidget = Binding->BoundWidget.Get())
+		{
+			const UGameInstance* GameInstance = BoundWidget->GetGameInstance();
+			if (GameInstance && Binding->UserIndex != INDEX_NONE)
+			{
+				return GameInstance->GetLocalPlayerByIndex(Binding->UserIndex);
+			}
+			else
+			{
+				return BoundWidget->GetOwningLocalPlayer();
+			}
+		}
+	}
+	return nullptr;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FUIInputConfig
@@ -628,13 +662,13 @@ FActionRouterBindingCollection::FActionRouterBindingCollection(UCommonUIActionRo
 	: ActionRouterPtr(&OwningRouter)
 {}
 
-EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const
 {
 	for (FUIActionBindingHandle BindingHandle : ActionBindings)
 	{
 		if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
 		{
-			if (ActiveInputMode == ECommonInputMode::All || ActiveInputMode == Binding->InputMode)
+			if (Binding->UserIndex == UserIndex && (ActiveInputMode == ECommonInputMode::All || ActiveInputMode == Binding->InputMode))
 			{
 				for (const FUIActionKeyMapping& HoldMapping : Binding->HoldMappings)
 				{
@@ -701,13 +735,13 @@ EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommo
 	return EProcessHoldActionResult::Unhandled;
 }
 
-bool FActionRouterBindingCollection::ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+bool FActionRouterBindingCollection::ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const
 {
 	for (FUIActionBindingHandle BindingHandle : ActionBindings)
 	{
 		if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
 		{
-			if (ActiveInputMode == ECommonInputMode::All || ActiveInputMode == Binding->InputMode)
+			if (Binding->UserIndex == UserIndex && (ActiveInputMode == ECommonInputMode::All || ActiveInputMode == Binding->InputMode))
 			{
 				auto TryConsumeInput = [&](const FKey& InKey, const UInputAction* InInputAction)
 				{
@@ -754,7 +788,7 @@ bool FActionRouterBindingCollection::ProcessNormalInput(ECommonInputMode ActiveI
 					if (const UInputAction* InputAction = Binding->InputAction.Get())
 					{
 						TArray<FKey> InputActionKeys;
-						CommonUI::GetEnhancedInputActionKeys(GetActionRouter().GetLocalPlayerChecked(), InputAction, InputActionKeys);
+						CommonUI::GetEnhancedInputActionKeys(BindingHandle.GetBoundLocalPlayer(), InputAction, InputActionKeys);
 						for (const FKey& InputActionKey : InputActionKeys)
 						{
 							if (TryConsumeInput(InputActionKey, InputAction))
@@ -809,7 +843,21 @@ void FActionRouterBindingCollection::AddBinding(FUIActionBinding& Binding)
 {
 	if (ensure(!ActionBindings.Contains(Binding.Handle)))
 	{
-		ActionBindings.Add(Binding.Handle);
+		int32 IndexToInsertBinding = ActionBindings.Num();
+		for (int32 Index = ActionBindings.Num() - 1; Index >= 0; Index--)
+		{
+			if (TSharedPtr<const FUIActionBinding> UIActionBinding = FUIActionBinding::FindBinding(ActionBindings[Index]))
+			{
+				if (UIActionBinding->PriorityWithinCollection < Binding.PriorityWithinCollection)
+				{
+					IndexToInsertBinding = Index;
+					continue;
+				}
+			}
+			break;
+		}
+		ActionBindings.Insert(Binding.Handle, IndexToInsertBinding);
+
 		Binding.OwningCollection = AsShared();
 
 		if (Binding.HoldMappings.Num() > 0)
@@ -929,35 +977,35 @@ FActivatableTreeNode::~FActivatableTreeNode()
 	}
 }
 
-EProcessHoldActionResult FActivatableTreeNode::ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+EProcessHoldActionResult FActivatableTreeNode::ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const
 {
 	if (IsReceivingInput())
 	{
 		for (const FActivatableTreeNodeRef& ChildNode : Children)
 		{
-			EProcessHoldActionResult ChildResult = ChildNode->ProcessHoldInput(ActiveInputMode, Key, InputEvent);
+			EProcessHoldActionResult ChildResult = ChildNode->ProcessHoldInput(ActiveInputMode, Key, InputEvent, UserIndex);
 			if (ChildResult != EProcessHoldActionResult::Unhandled)
 			{
 				return ChildResult;
 			}
 		}
-		return FActionRouterBindingCollection::ProcessHoldInput(ActiveInputMode, Key, InputEvent);
+		return FActionRouterBindingCollection::ProcessHoldInput(ActiveInputMode, Key, InputEvent, UserIndex);
 	}
 	return EProcessHoldActionResult::Unhandled;
 }
 
-bool FActivatableTreeNode::ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+bool FActivatableTreeNode::ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, int32 UserIndex) const
 {
 	if (IsReceivingInput())
 	{
 		for (const FActivatableTreeNodeRef& ChildNode : Children)
 		{
-			if (ChildNode->ProcessNormalInput(ActiveInputMode, Key, InputEvent))
+			if (ChildNode->ProcessNormalInput(ActiveInputMode, Key, InputEvent, UserIndex))
 			{
 				return true;
 			}
 		}
-		return FActionRouterBindingCollection::ProcessNormalInput(ActiveInputMode, Key, InputEvent);
+		return FActionRouterBindingCollection::ProcessNormalInput(ActiveInputMode, Key, InputEvent, UserIndex);
 	}
 	return false;
 }
@@ -997,10 +1045,11 @@ FActivatableTreeNodeRef FActivatableTreeNode::AddChildNode(UCommonActivatableWid
 void FActivatableTreeNode::CacheFocusRestorationTarget()
 {
 	TSharedPtr<SWidget> FocusedWidget = FSlateApplication::Get().GetUserFocusedWidget(GetOwnerUserIndex());
-	UCommonActivatableWidget* FocusedActivatableWidget = FocusedWidget ? UCommonUIActionRouterBase::FindOwningActivatable(FocusedWidget, GetActionRouter().GetLocalPlayerChecked()) : nullptr;
+	UCommonActivatableWidget* FocusedActivatableWidget = FocusedWidget ? UCommonUIActionRouterBase::FindActivatable(FocusedWidget, GetActionRouter().GetLocalPlayerChecked()) : nullptr;
 
-	if (FocusedWidget != FocusRestorationTarget.Pin() &&  (!FocusedActivatableWidget || IsWidgetInNodeHierarchy(FocusedActivatableWidget, *this)))
+	if (FocusedWidget != FocusRestorationTarget.Pin() && (!FocusedWidget || (FocusedActivatableWidget && IsWidgetInNodeHierarchy(FocusedActivatableWidget, *this))))
 	{
+		UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("FocusRestorationTarget for [%s] changed from [%s] to [%s]"), *GetNameSafe(GetWidget()), *FReflectionMetaData::GetWidgetDebugInfo(FocusRestorationTarget.Pin().Get()), *FReflectionMetaData::GetWidgetDebugInfo(FocusedWidget.Get()));
 		FocusRestorationTarget = FocusedWidget;
 	}
 }
@@ -1164,12 +1213,12 @@ void FActivatableTreeNode::DebugDumpRecursive(FString& OutputStr, int32 Depth, b
 	}
 }
 
-bool FActivatableTreeNode::IsParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const
+bool FActivatableTreeNode::IsParentOfWidget(const TSharedPtr<SWidget>& SlateWidget, EIsParentSearchType ParentSearchType) const
 {
 	if (SlateWidget && ensure(RepresentedWidget.IsValid()))
 	{
 		TSharedPtr<SWidget> CachedWidget = RepresentedWidget->GetCachedWidget();
-		TSharedPtr<SWidget> ParentWidget = SlateWidget->GetParentWidget();
+		TSharedPtr<SWidget> ParentWidget = (ParentSearchType == ExcludeSelf) ? SlateWidget->GetParentWidget() : SlateWidget;
 		while (ParentWidget && ParentWidget != CachedWidget)
 		{
 			ParentWidget = ParentWidget->GetParentWidget();
@@ -1181,11 +1230,11 @@ bool FActivatableTreeNode::IsParentOfWidget(const TSharedPtr<SWidget>& SlateWidg
 
 bool FActivatableTreeNode::IsExclusiveParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const
 {
-	if (IsParentOfWidget(SlateWidget))
+	if (IsParentOfWidget(SlateWidget, ExcludeSelf))
 	{
 		for (const FActivatableTreeNodeRef& ChildNode : GetChildren())
 		{
-			if (ChildNode->DoesWidgetSupportActivationFocus() && ChildNode->IsParentOfWidget(SlateWidget))
+			if (ChildNode->DoesWidgetSupportActivationFocus() && ChildNode->IsParentOfWidget(SlateWidget, ExcludeSelf))
 			{
 				return false;
 			}
@@ -1473,6 +1522,12 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 		return;
 	}
 #endif
+	if (!CanSetInputConfigAndFocus())
+	{
+		UE_LOG(LogUIActionRouter, Log, TEXT("Didn't apply input config for leaf-most node of root node [%s] because it's not the active action domain node"), *GetNameSafe(GetWidget()));
+		return;
+	}
+
 	if (FActivatableTreeNodePtr PinnedLeafmostNode = LeafmostActiveNode.Pin())
 	{
 		GetActionRouter().SetActiveActivationMetadata(PinnedLeafmostNode->FindActivationMetadata());
@@ -1501,26 +1556,52 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 	}
 }
 
+bool FActivatableTreeRoot::IsAnActionDomainRoot() const
+{
+	for (const TPair<TObjectPtr<UCommonInputActionDomain>, UCommonUIActionRouterBase::FActionDomainSortedRootList>& Pair : GetActionRouter().ActionDomainRootNodes)
+	{
+		if (Pair.Value.Contains(SharedThis(const_cast<FActivatableTreeRoot*>(this))))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FActivatableTreeRoot::IsActiveActionDomainRoot() const
+{
+	return GetActionRouter().FindActiveActionDomainRootNode().Get() == this;
+}
+
+bool FActivatableTreeRoot::CanSetInputConfigAndFocus() const
+{
+	return !IsAnActionDomainRoot() || IsActiveActionDomainRoot();
+}
+
 void FActivatableTreeRoot::FocusLeafmostNode()
 {
-	check(LeafmostActiveNode.IsValid());
-	if (!LeafmostActiveNode.IsValid())
+	if (!CanSetInputConfigAndFocus())
+	{
+		UE_LOG(LogUIActionRouter, Log, TEXT("%s cannot focus its leaf most node because another node has priority"), *GetNameSafe(GetWidget()));
+		return;
+	}
+
+	if (!ensure(LeafmostActiveNode.IsValid()))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot focus leaf most node - invalid LeafmostActiveNode"));
 		return;
 	}
 	FActivatableTreeNodePtr PinnedLeafmostNode = LeafmostActiveNode.Pin();
 
-	check(PinnedLeafmostNode);
-	if (!PinnedLeafmostNode)
+	if (!ensure(PinnedLeafmostNode))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot focus leaf most node - invalid PinnedLeafmostNode"));
 		return;
 	}
 
 	UCommonActivatableWidget* LeafWidget = PinnedLeafmostNode->GetWidget();
-	check(LeafWidget);
-	if (!LeafWidget)
+	if (!ensure(LeafWidget))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot focus leaf most node - invalid LeafWidget"));
 		return;
@@ -1546,7 +1627,7 @@ void FActivatableTreeRoot::FocusLeafmostNode()
 
 	if (TSharedPtr<SWidget> AutoRestoreTarget = LeafWidget->AutoRestoresFocus() ? PinnedLeafmostNode->GetFocusFallbackTarget() : nullptr)
 	{
-		UE_LOG(LogUIActionRouter, Display, TEXT("[User %d] Set AutoRestoreTarget"), OwnerSlateId);
+		UE_LOG(LogUIActionRouter, Display, TEXT("[User %d] Focused AutoRestoreTarget %s"), OwnerSlateId, *FReflectionMetaData::GetWidgetDebugInfo(AutoRestoreTarget.Get()));
 		
 		bShouldCancelDelayedFocusOperation = FSlateApplication::Get().SetUserFocus(OwnerSlateId, AutoRestoreTarget);
 	}

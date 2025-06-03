@@ -7,31 +7,40 @@
 #include "UIActionBindingHandle.h"
 #include "CommonBoundActionButton.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonTextBlock;
 
-UCLASS(Abstract, meta = (DisableNativeTick))
-class COMMONUI_API UCommonBoundActionButton : public UCommonButtonBase, public ICommonBoundActionButtonInterface
+UCLASS(MinimalAPI, Abstract, meta = (DisableNativeTick))
+class UCommonBoundActionButton : public UCommonButtonBase, public ICommonBoundActionButtonInterface
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin ICommonBoundActionButtonInterface
-	virtual void SetRepresentedAction(FUIActionBindingHandle InBindingHandle) override;
+	UE_API virtual void SetRepresentedAction(FUIActionBindingHandle InBindingHandle) override;
 	//~ End ICommonBoundActionButtonInterface
 	
 protected:
-	virtual void NativeOnClicked() override;
-	virtual void NativeOnCurrentTextStyleChanged() override;
+	UE_API virtual void NativeOnClicked() override;
+	UE_API virtual void NativeOnCurrentTextStyleChanged() override;
 
-	virtual void UpdateInputActionWidget() override;
+	UE_API virtual void UpdateInputActionWidget() override;
+	UE_API virtual void UpdateHoldData(ECommonInputType CurrentInputType) override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Common Bound Action")
-	void OnUpdateInputAction();
+	UE_API void OnUpdateInputAction();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Text Block")
 	TObjectPtr<UCommonTextBlock> Text_ActionName;
+	
+	/** Set to true if clicking this button should require holding it when the bound action is a hold action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold")
+	bool bLinkRequiresHoldToBindingHold = false;
 
 private:
 	FUIActionBindingHandle BindingHandle;
 };
+
+#undef UE_API

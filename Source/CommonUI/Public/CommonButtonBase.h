@@ -22,7 +22,16 @@ class SBox;
 class UCommonActionWidget;
 class UInputAction;
 
-class COMMONUI_API FCommonButtonMetaData : public ISlateMetaData
+enum class EHoverEventSource : uint8
+{
+	Unknown,
+	MouseEvent,
+	InteractabilityChanged,
+	SelectionChanged,
+	SimulationForTouch,
+};
+
+class FCommonButtonMetaData : public ISlateMetaData
 {
 public:
 	SLATE_METADATA_TYPE(FCommonButtonMetaData, ISlateMetaData)
@@ -115,6 +124,14 @@ public:
 	/** The minimum height of buttons using this style */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties")
 	int32 MinHeight;
+	
+	/** The maximum width of buttons using this style */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties")
+	int32 MaxWidth;
+	
+	/** The maximum height of buttons using this style */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties")
+    int32 MaxHeight;
 
 	/** The text style to use when un-selected */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties")
@@ -140,13 +157,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Pressed Sound"))
 	FSlateSound PressedSlateSound;
 
+	/** The sound to play when the button is clicked */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Clicked Sound"))
+	FSlateSound ClickedSlateSound;
+
 	/** The sound to play when the button is pressed while selected */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Selected Pressed Sound"))
 	FCommonButtonStyleOptionalSlateSound SelectedPressedSlateSound;
 
+	/** The sound to play when the button is clicked while selected */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Selected Clicked Sound"))
+	FCommonButtonStyleOptionalSlateSound SelectedClickedSlateSound;
+
 	/** The sound to play when the button is pressed while locked */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Locked Pressed Sound"))
 	FCommonButtonStyleOptionalSlateSound LockedPressedSlateSound;
+
+	/** The sound to play when the button is clicked while locked */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Locked Clicked Sound"))
+	FCommonButtonStyleOptionalSlateSound LockedClickedSlateSound;
 	
 	/** The sound to play when the button is hovered */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Hovered Sound"))
@@ -225,6 +254,10 @@ public:
 
 	COMMONUI_API void SetMinDesiredHeight(int32 InMinHeight);
 	COMMONUI_API void SetMinDesiredWidth(int32 InMinWidth);
+	COMMONUI_API void SetMaxDesiredHeight(int32 InMaxHeight);
+	COMMONUI_API void SetMaxDesiredWidth(int32 InMaxWidth);
+
+	inline TSharedPtr<class SCommonButton> GetCommonButton() const { return MyCommonButton; }
 
 	/** Called when the button is clicked */
 	FOnButtonDoubleClickedEvent HandleDoubleClicked;
@@ -263,6 +296,14 @@ protected:
 	/** The minimum height of the button */
 	UPROPERTY()
 	int32 MinHeight;
+	
+	/** The maximum width of the button */
+	UPROPERTY()
+	int32 MaxWidth;
+	
+	/** The maximum height of the button */
+	UPROPERTY()
+	int32 MaxHeight;
 
 	/** If true, this button is enabled. */
 	UPROPERTY()
@@ -301,6 +342,7 @@ public:
 	COMMONUI_API virtual void NativeDestruct() override;
 	COMMONUI_API virtual bool Initialize() override;
 	COMMONUI_API virtual void SetIsEnabled(bool bInIsEnabled) override;
+	COMMONUI_API virtual void SetVisibility(ESlateVisibility InVisibility) override;
 	COMMONUI_API virtual bool NativeIsInteractable() const override;
 	// End of UUserWidget interface
 	
@@ -411,6 +453,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
 	COMMONUI_API void SetMinDimensions(int32 InMinWidth, int32 InMinHeight);
 
+	/** Sets the maximum dimensions of this button */
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
+	COMMONUI_API void SetMaxDimensions(int32 InMaxWidth, int32 InMaxHeight);
+
 	/** Updates the current triggered action */
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
 	COMMONUI_API void SetTriggeredInputAction(const FDataTableRowHandle &InputActionRow);
@@ -462,16 +508,25 @@ public:
 	COMMONUI_API void SetPressedSoundOverride(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	COMMONUI_API void SetClickedSoundOverride(USoundBase* Sound);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	COMMONUI_API void SetHoveredSoundOverride(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	COMMONUI_API void SetSelectedPressedSoundOverride(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	COMMONUI_API void SetSelectedClickedSoundOverride(USoundBase* Sound);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	COMMONUI_API void SetSelectedHoveredSoundOverride(USoundBase* Sound);
 	
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	COMMONUI_API void SetLockedPressedSoundOverride(USoundBase* Sound);
+	
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	COMMONUI_API void SetLockedClickedSoundOverride(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	COMMONUI_API void SetLockedHoveredSoundOverride(USoundBase* Sound);
@@ -504,7 +559,6 @@ protected:
 	COMMONUI_API virtual void PostLoad() override;
 	COMMONUI_API virtual void SynchronizeProperties() override;
 	COMMONUI_API virtual FReply NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent) override;
-	COMMONUI_API virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
 #if WITH_EDITOR
 	COMMONUI_API virtual void OnCreationFromPalette() override;
@@ -513,10 +567,13 @@ protected:
 
 	// In some scenarios, USoundBase* setters are bypassed, so standard setters must also be provided for sound override properties
 	COMMONUI_API void SetPressedSlateSoundOverride(const FSlateSound& InPressedSlateSoundOverride);
+	COMMONUI_API void SetClickedSlateSoundOverride(const FSlateSound& InClickedSlateSoundOverride);
 	COMMONUI_API void SetHoveredSlateSoundOverride(const FSlateSound& InHoveredSlateSoundOverride);
 	COMMONUI_API void SetSelectedPressedSlateSoundOverride(const FSlateSound& InSelectedPressedSlateSoundOverride);
+	COMMONUI_API void SetSelectedClickedSlateSoundOverride(const FSlateSound& InSelectedClickedSlateSoundOverride);
 	COMMONUI_API void SetSelectedHoveredSlateSoundOverride(const FSlateSound& InSelectedHoveredSlateSoundOverride);
 	COMMONUI_API void SetLockedPressedSlateSoundOverride(const FSlateSound& InLockedPressedSlateSoundOverride);
+	COMMONUI_API void SetLockedClickedSlateSoundOverride(const FSlateSound& InLockedClickedSlateSoundOverride);
 	COMMONUI_API void SetLockedHoveredSlateSoundOverride(const FSlateSound& InLockedHoveredSlateSoundOverride);
 
 	/** Helper function to bind to input method change events */
@@ -529,6 +586,10 @@ protected:
 	UFUNCTION()
 	COMMONUI_API virtual void OnInputMethodChanged(ECommonInputType CurrentInputType);
 
+	/** This should be used as a check before calling NativeOnHovered and NativeOnUnhovered.
+	returns false if this button is set to explicitly block hover events on touch.*/
+	COMMONUI_API bool ShouldProcessHoverEvent(EHoverEventSource HoverReason);
+	
 	/** If HoldData is valid, assigns its values to Keyboard and Mouse, Gamepad and Touch, based off the Current Input Type. */
     UFUNCTION()
 	COMMONUI_API virtual void UpdateHoldData(ECommonInputType CurrentInputType);
@@ -551,10 +612,10 @@ protected:
 
 	/** Handler function registered to the underlying button's click. */
 	UFUNCTION()
-	COMMONUI_API void HandleButtonClicked();
+	COMMONUI_API virtual void HandleButtonClicked();
 
 	/** Handler function registered to the underlying button's double click. */
-	COMMONUI_API FReply HandleButtonDoubleClicked();
+	COMMONUI_API virtual FReply HandleButtonDoubleClicked();
 
 	/** Helper function registered to the underlying button receiving focus */
 	UFUNCTION()
@@ -566,11 +627,11 @@ protected:
 
 	/** Helper function registered to the underlying button when pressed */
 	UFUNCTION()
-	COMMONUI_API void HandleButtonPressed();
+	COMMONUI_API virtual void HandleButtonPressed();
 
 	/** Helper function registered to the underlying button when released */
 	UFUNCTION()
-	COMMONUI_API void HandleButtonReleased();
+	COMMONUI_API virtual void HandleButtonReleased();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Selected"))
 	COMMONUI_API void BP_OnSelected();
@@ -642,6 +703,9 @@ protected:
 	COMMONUI_API void OnCurrentTextStyleChanged();
 	COMMONUI_API virtual void NativeOnCurrentTextStyleChanged();
 
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Requires Hold Changed"))
+	COMMONUI_API void BP_OnRequiresHoldChanged();
+
 	/** Internal method to allow the selected state to be set regardless of selectability or toggleability */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected="true"), Category = "Common Button")
 	COMMONUI_API void SetSelectedInternal(bool bInSelected, bool bAllowSound = true, bool bBroadcast = true);
@@ -706,6 +770,14 @@ protected:
 	/** The minimum height of the button (only used if greater than the style's minimum) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (ClampMin = "0"))
 	int32 MinHeight;
+	
+	/** The maximum width of the button (only used if greater than the style's maximum) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (ClampMin = "0"))
+	int32 MaxWidth;
+	
+	/** The maximum height of the button (only used if greater than the style's maximum) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (ClampMin = "0"))
+	int32 MaxHeight;
 
 	/** References the button style asset that defines a style in multiple sizes */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, meta = (ExposeOnSpawn = true))
@@ -723,6 +795,12 @@ protected:
 	FSlateSound PressedSlateSoundOverride;
 
 	/**
+	 * Optional override for the sound to play when this button is clicked (based on Click/Touch/Press methods).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Clicked Sound Override"))
+	FSlateSound ClickedSlateSoundOverride;
+
+	/**
 	 * Optional override for the sound to play when this button is hovered.
 	 * Also used for the Selected and Locked Hovered state if their respective overrides are empty.
 	 */
@@ -733,6 +811,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Selected Pressed Sound Override"))
 	FSlateSound SelectedPressedSlateSoundOverride;
 
+	/** Optional override for the sound to play when this button is clicked while Selected */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Selected Clicked Sound Override"))
+	FSlateSound SelectedClickedSlateSoundOverride;
+
 	/** Optional override for the sound to play when this button is hovered while Selected */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Selected Hovered Sound Override"))
 	FSlateSound SelectedHoveredSlateSoundOverride;
@@ -740,6 +822,10 @@ protected:
 	/** Optional override for the sound to play when this button is pressed while Locked */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Locked Pressed Sound Override"))
 	FSlateSound LockedPressedSlateSoundOverride;
+
+	/** Optional override for the sound to play when this button is clicked while Locked */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Locked Clicked Sound Override"))
+	FSlateSound LockedClickedSlateSoundOverride;
 
 	/** Optional override for the sound to play when this button is hovered while Locked */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category = Sound, meta = (DisplayName = "Locked Hovered Sound Override"))
@@ -791,13 +877,13 @@ protected:
 	/** True if this button should have a press and hold behavior, triggering the click when the specified hold time is met */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold", meta = (ExposeOnSpawn = true))
 	uint8 bRequiresHold:1;
-	
+
 	/** Press and Hold values used for Keyboard and Mouse, Gamepad and Touch, depending on the current input type */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold", meta = (EditCondition="bRequiresHold", ExposeOnSpawn = true))
 	TSubclassOf<UCommonUIHoldData> HoldData;
 	
 	/** True if this button should play the hover effect when pressed by a touch input */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, AdvancedDisplay, meta = (EditCondition="IsHoverSimulationOnTouchAvailable()", EditConditionHides))
 	bool bSimulateHoverOnTouchInput = true;
 
 private:
@@ -859,6 +945,10 @@ public:
 	bool bStyleNoLongerNeedsConversion;
 #endif
 
+	/** If this button is currently in focus, and is disabled, hidden, or collapsed then focus will be routed to the next available widget */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	uint8 bNavigateToNextWidgetOnDisable : 1;
+
 protected:
 	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Selected Changed"))
 	FCommonSelectedStateChangedBase OnSelectedChangedBase;
@@ -874,12 +964,24 @@ protected:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Unhovered"))
 	FCommonButtonBaseClicked OnButtonBaseUnhovered;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Focused"))
+	FCommonButtonBaseClicked OnButtonBaseFocused;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Unfocused"))
+	FCommonButtonBaseClicked OnButtonBaseUnfocused;
 	
 	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Lock Clicked"))
 	FCommonButtonBaseClicked OnButtonBaseLockClicked;
 
 	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Lock Double Clicked"))
 	FCommonButtonBaseClicked OnButtonBaseLockDoubleClicked;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Selected"))
+	FCommonButtonBaseClicked OnButtonBaseSelected;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Unselected"))
+	FCommonButtonBaseClicked OnButtonBaseUnselected;
 
 	FUIActionBindingHandle TriggeringBindingHandle;
 	
@@ -921,6 +1023,9 @@ private:
 	//Set this to Game for special cases where an input action needs to be set for an in-game button.
 	UPROPERTY(EditAnywhere, Category = Input, AdvancedDisplay)
 	ECommonInputMode InputModeOverride = ECommonInputMode::Menu;
+
+	UFUNCTION()
+	bool IsHoverSimulationOnTouchAvailable() const;
 	
 	void BuildStyles();
 	void SetButtonStyle();
@@ -930,6 +1035,8 @@ private:
 
 	/** Disables this button (called in SetIsEnabled override) */
 	void DisableButton();
+
+	void HandleImplicitFocusLost();
 
 	FText EnabledTooltipText;
 	FText DisabledTooltipText;
@@ -999,7 +1106,7 @@ public:
 	/** Post-load initialized bit corresponding to this binary state */
 	COMMONUI_API static inline FWidgetStateBitfield Bit;
 
-	COMMONUI_API static const inline FName StateName = FName("Locked");
+	static const inline FName StateName = FName("Locked");
 
 	//~ Begin UWidgetBinaryStateRegistration Interface.
 	COMMONUI_API virtual FName GetStateName() const override;
@@ -1013,8 +1120,3 @@ protected:
 	COMMONUI_API virtual void InitializeStaticBitfields() const override;
 	//~ End UWidgetBinaryStateRegistration Interface
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "Misc/Optional.h"
-#endif

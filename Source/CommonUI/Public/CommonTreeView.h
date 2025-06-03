@@ -5,6 +5,8 @@
 #include "Components/TreeView.h"
 #include "CommonTreeView.generated.h"
 
+#define UE_API COMMONUI_API
+
 class STableViewBase;
 
 //////////////////////////////////////////////////////////////////////////
@@ -86,15 +88,17 @@ protected:
 /**
  * TreeView specialized to navigate on focus for consoles & enable scrolling when not focused for touch
  */
-UCLASS()
-class COMMONUI_API UCommonTreeView : public UTreeView
+UCLASS(MinimalAPI)
+class UCommonTreeView : public UTreeView
 {
 	GENERATED_BODY()
 
 public:
-	UCommonTreeView(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonTreeView(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	virtual TSharedRef<STableViewBase> RebuildListWidget() override;
-	virtual UUserWidget& OnGenerateEntryWidgetInternal(UObject* Item, TSubclassOf<UUserWidget> DesiredEntryClass, const TSharedRef<STableViewBase>& OwnerTable) override;
+	UE_API virtual TSharedRef<STableViewBase> RebuildListWidget() override;
+	UE_API virtual UUserWidget& OnGenerateEntryWidgetInternal(UObject* Item, TSubclassOf<UUserWidget> DesiredEntryClass, const TSharedRef<STableViewBase>& OwnerTable) override;
 };
+
+#undef UE_API

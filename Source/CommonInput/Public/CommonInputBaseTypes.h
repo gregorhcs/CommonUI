@@ -18,25 +18,27 @@
 
 #include "CommonInputBaseTypes.generated.h"
 
+#define UE_API COMMONINPUT_API
+
 
 class UCommonUIHoldData;
 class UTexture2D;
 class UMaterial;
 class UCommonInputSettings; 
 
-struct COMMONINPUT_API FCommonInputDefaults
+struct FCommonInputDefaults
 {
-	static const FName PlatformPC;
-	static const FName GamepadGeneric;
+	static UE_API const FName PlatformPC;
+	static UE_API const FName GamepadGeneric;
 };
 
 USTRUCT(Blueprintable)
-struct COMMONINPUT_API FCommonInputKeyBrushConfiguration
+struct FCommonInputKeyBrushConfiguration
 {
 	GENERATED_BODY()
 
 public:
-	FCommonInputKeyBrushConfiguration();
+	UE_API FCommonInputKeyBrushConfiguration();
 
 	const FSlateBrush& GetInputBrush() const { return KeyBrush; }
 
@@ -49,12 +51,12 @@ public:
 };
 
 USTRUCT(Blueprintable)
-struct COMMONINPUT_API FCommonInputKeySetBrushConfiguration
+struct FCommonInputKeySetBrushConfiguration
 {
 	GENERATED_BODY()
 
 public:
-	FCommonInputKeySetBrushConfiguration();
+	UE_API FCommonInputKeySetBrushConfiguration();
 
 	const FSlateBrush& GetInputBrush() const { return KeyBrush; }
 
@@ -90,14 +92,20 @@ struct FInputHoldData
 	float HoldRollbackTime = 0.0;
 };
 
+namespace CommonUIUtils
+{
+	COMMONINPUT_API bool TryGetInputBrushFromDataMap(FSlateBrush& OutBrush, const FKey& InKey, const TArray<FCommonInputKeyBrushConfiguration>& InInputBrushDataMap);
+	COMMONINPUT_API bool TryGetInputBrushFromKeySets(FSlateBrush& OutBrush, const TArray<FKey>& InKeys, const TArray<FCommonInputKeySetBrushConfiguration>& InInputBrushKeySets);
+}
+
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */
-UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
-class COMMONINPUT_API UCommonUIInputData : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
+class UCommonUIInputData : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool NeedsLoadForServer() const override;
+	UE_API virtual bool NeedsLoadForServer() const override;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
@@ -121,8 +129,8 @@ public:
 };
 
 /* Defines values for hold behavior per input type: for mouse Press and Hold, for gamepad focused Press and Hold, for touch Press and Hold. */
-UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
-class COMMONINPUT_API UCommonUIHoldData : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
+class UCommonUIHoldData : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -145,18 +153,18 @@ public:
 };
 
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */
-UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
-class COMMONINPUT_API UCommonInputBaseControllerData : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
+class UCommonInputBaseControllerData : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool NeedsLoadForServer() const override;
-	virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const FKey& Key) const;
-	virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys) const;
+	UE_API virtual bool NeedsLoadForServer() const override;
+	UE_API virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const FKey& Key) const;
+	UE_API virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys) const;
 
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	virtual void PostLoad() override;
+	UE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	UE_API virtual void PostLoad() override;
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -198,42 +206,50 @@ public:
 	TArray<FCommonInputKeySetBrushConfiguration> InputBrushKeySets;
 
 	UFUNCTION()
-	static const TArray<FName>& GetRegisteredGamepads();
+	static UE_API const TArray<FName>& GetRegisteredGamepads();
 
 private:
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
 
-UCLASS(config = Game, defaultconfig)
-class COMMONINPUT_API UCommonInputPlatformSettings : public UPlatformSettings
+UCLASS(MinimalAPI, config = Game, defaultconfig)
+class UCommonInputPlatformSettings : public UPlatformSettings
 {
 	GENERATED_BODY()
 
 	friend class UCommonInputSettings;
 
 public:
-	UCommonInputPlatformSettings();
+	UE_API UCommonInputPlatformSettings();
 
-	virtual void PostLoad() override;
+	UE_API virtual void PostLoad() override;
 
 	static UCommonInputPlatformSettings* Get()
 	{
 		return UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>();
 	}
 
-	bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName GamepadName) const;
-	bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName GamepadName) const;
+	UE_API bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName GamepadName) const;
+	UE_API bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName GamepadName) const;
 
-	FName GetBestGamepadNameForHardware(FName CurrentGamepadName, FName InputDeviceName, const FString& HardwareDeviceIdentifier); 
+	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> GetControllerData() const
+	{
+		return ControllerData;
+	}
+	UE_API TArray<const UCommonInputBaseControllerData*> GetControllerDataForInputType(ECommonInputType InputType, const FName GamepadName) const;
+	UE_API void AddControllerDataEntry(TSoftClassPtr<UCommonInputBaseControllerData> Entry);
+	UE_API void RemoveControllerDataEntry(TSoftClassPtr<UCommonInputBaseControllerData> Entry);
+
+	UE_API FName GetBestGamepadNameForHardware(FName CurrentGamepadName, FName InputDeviceName, const FString& HardwareDeviceIdentifier); 
 
 	ECommonInputType GetDefaultInputType() const
 	{
 		return DefaultInputType;
 	}
 
-	bool SupportsInputType(ECommonInputType InputType) const;
+	UE_API bool SupportsInputType(ECommonInputType InputType) const;
 
 	const FName GetDefaultGamepadName() const
 	{
@@ -245,19 +261,14 @@ public:
 		return bCanChangeGamepadType;
 	}
 
-	TArray<TSoftClassPtr<UCommonInputBaseControllerData>> GetControllerData()
-	{
-		return ControllerData;
-	}
-
-
 #if WITH_EDITOR
-	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+	UE_API void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif
+	UE_API virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 
 protected:
-	void InitializeControllerData() const;
-	virtual void InitializePlatformDefaults();
+	UE_API void InitializeControllerData() const;
+	UE_API virtual void InitializePlatformDefaults();
 
 	UPROPERTY(config, EditAnywhere, Category = "Default")
 	ECommonInputType DefaultInputType;
@@ -286,7 +297,7 @@ protected:
 
 /* DEPRECATED Legacy! */
 USTRUCT()
-struct COMMONINPUT_API FCommonInputPlatformBaseData
+struct FCommonInputPlatformBaseData
 {
 	GENERATED_BODY()
 
@@ -304,8 +315,8 @@ public:
 	}
 	virtual ~FCommonInputPlatformBaseData() = default;
 
-	virtual bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const;
-	virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType,  const FName& GamepadName) const;
+	UE_API virtual bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const;
+	UE_API virtual bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType,  const FName& GamepadName) const;
 
 
 	ECommonInputType GetDefaultInputType() const
@@ -351,7 +362,7 @@ public:
 		return ControllerData;
 	}
 
-	static const TArray<FName>& GetRegisteredPlatforms();
+	static UE_API const TArray<FName>& GetRegisteredPlatforms();
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties")
@@ -388,3 +399,5 @@ public:
 
 	COMMONINPUT_API static void GetCurrentPlatformDefaults(ECommonInputType& OutDefaultInputType, FName& OutDefaultGamepadName);
 };
+
+#undef UE_API

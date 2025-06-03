@@ -16,7 +16,3 @@ private:
 	/** Asset type actions */
 	TArray<TSharedPtr<class FAssetTypeActions_Base>> ItemDataAssetTypeActions;
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Modules/ModuleInterface.h"
-#endif

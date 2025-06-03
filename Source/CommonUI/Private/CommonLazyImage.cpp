@@ -20,11 +20,13 @@ UCommonLazyImage::UCommonLazyImage(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
 	LoadingBackgroundBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
+	LoadingThrobberBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
 }
 
 TSharedRef<SWidget> UCommonLazyImage::RebuildWidget()
 {
 	MyLoadGuard = SNew(SLoadGuard)
+		.Throbber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr))
 		.GuardBackgroundBrush(&LoadingBackgroundBrush)
 		.OnLoadingStateChanged_UObject(this, &UCommonLazyImage::HandleLoadGuardStateChanged)
 		[
@@ -50,6 +52,11 @@ void UCommonLazyImage::OnWidgetRebuilt()
 void UCommonLazyImage::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+
+	if (MyLoadGuard.IsValid())
+	{
+		MyLoadGuard->SetThrobber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr));
+	}
 
 #if WITH_EDITOR
 	if (IsDesignTime())

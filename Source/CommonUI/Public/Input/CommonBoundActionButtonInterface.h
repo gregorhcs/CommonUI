@@ -8,8 +8,8 @@
 
 #include "CommonBoundActionButtonInterface.generated.h"
 
-UINTERFACE()
-class COMMONUI_API UCommonBoundActionButtonInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UCommonBoundActionButtonInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -17,7 +17,7 @@ class COMMONUI_API UCommonBoundActionButtonInterface : public UInterface
 /**
  * Interface for runtime bindable action buttons. Allows button widget to be used by CommonBoundActionBar.
  */
-class COMMONUI_API ICommonBoundActionButtonInterface
+class ICommonBoundActionButtonInterface
 {
 	GENERATED_BODY()
 

@@ -412,6 +412,12 @@ void UCommonRichTextBlock::SetText(const FText& InText)
 	}
 }
 
+void UCommonRichTextBlock::SetStyle(const TSubclassOf<UCommonTextStyle>& InStyle)
+{
+	DefaultTextStyleOverrideClass = InStyle;
+	SynchronizeProperties();
+}
+
 void UCommonRichTextBlock::SetScrollingEnabled(bool bInIsScrollingEnabled)
 {
 	bIsScrollingEnabled = bInIsScrollingEnabled;
@@ -492,6 +498,7 @@ TSharedRef<SWidget> UCommonRichTextBlock::RebuildWidget()
 	MyTextScroller =
 		SNew(STextScroller)
 		.ScrollOptions(TextScrollStyle->ToScrollOptions())
+		.ScrollOrientation(ScrollOrientation)
 		[
 			Super::RebuildWidget()
 		];

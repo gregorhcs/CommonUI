@@ -7,6 +7,8 @@
 #include "InputCoreTypes.h"
 #include "Rendering/SlateRenderTransform.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonUIActionRouterBase;
 class UCommonInputSubsystem;
 class SWidget;
@@ -23,7 +25,7 @@ enum EOrientation : int;
  * Introduces a separate focus-driven mode of operation, wherein the cursor is made invisible and automatically updated
  * to be centered over whatever widget is currently focused (except the game viewport - we completely hide it then)
  */
-class COMMONUI_API FCommonAnalogCursor : public FAnalogCursor
+class FCommonAnalogCursor : public FAnalogCursor
 {
 public:
 	template <typename AnalogCursorT = FCommonAnalogCursor>
@@ -34,42 +36,42 @@ public:
 		return NewCursor;
 	}
 
-	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
-	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
-	virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	UE_API virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
+	UE_API virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	UE_API virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
 
-	virtual bool CanReleaseMouseCapture() const;
+	UE_API virtual bool CanReleaseMouseCapture() const;
 
-	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
-	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
-	virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
-	virtual bool HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
+	UE_API virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+	UE_API virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual bool HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
 
-	void SetCursorMovementStick(EAnalogStick InCursorMovementStick);
+	UE_API void SetCursorMovementStick(EAnalogStick InCursorMovementStick);
 
-	virtual int32 GetOwnerUserIndex() const override;
+	UE_API virtual int32 GetOwnerUserIndex() const override;
 
-	virtual void ShouldHandleRightAnalog(bool bInShouldHandleRightAnalog);
+	UE_API virtual void ShouldHandleRightAnalog(bool bInShouldHandleRightAnalog);
 
 	virtual bool IsAnalogMovementEnabled() const { return bIsAnalogMovementEnabled; }
 
-	virtual bool ShouldVirtualAcceptSimulateMouseButton(const FKeyEvent& InKeyEvent, EInputEvent InputEvent) const { return true; }
+	UE_API virtual bool ShouldVirtualAcceptSimulateMouseButton(const FKeyEvent& InKeyEvent, EInputEvent InputEvent) const;
 
 protected:
-	FCommonAnalogCursor(const UCommonUIActionRouterBase& InActionRouter);
-	virtual void Initialize();
+	UE_API FCommonAnalogCursor(const UCommonUIActionRouterBase& InActionRouter);
+	UE_API virtual void Initialize();
 	
-	virtual EOrientation DetermineScrollOrientation(const UWidget& Widget) const;
+	UE_API virtual EOrientation DetermineScrollOrientation(const UWidget& Widget) const;
 
-	virtual bool IsRelevantInput(const FKeyEvent& KeyEvent) const override;
-	virtual bool IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const override;
+	UE_API virtual bool IsRelevantInput(const FKeyEvent& KeyEvent) const override;
+	UE_API virtual bool IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const override;
 	
-	void SetNormalizedCursorPosition(const FVector2D& RelativeNewPosition);
-	bool IsInViewport(const FVector2D& Position) const;
-	FVector2D ClampPositionToViewport(const FVector2D& InPosition) const;
-	void HideCursor();
+	UE_API void SetNormalizedCursorPosition(const FVector2D& RelativeNewPosition);
+	UE_API bool IsInViewport(const FVector2D& Position) const;
+	UE_API FVector2D ClampPositionToViewport(const FVector2D& InPosition) const;
+	UE_API void HideCursor();
 
-	UGameViewportClient* GetViewportClient() const;
+	UE_API UGameViewportClient* GetViewportClient() const;
 	
 	/**
 	 * A ridiculous function name, but we have this exact question in a few places.
@@ -77,16 +79,16 @@ protected:
 	 * but we also want to hold off doing anything while that game viewport has full capture.
 	 * So we need that "relevant, but not exclusive" sweet spot.
 	 */
-	bool IsGameViewportInFocusPathWithoutCapture() const;
+	UE_API bool IsGameViewportInFocusPathWithoutCapture() const;
 
-	virtual void RefreshCursorSettings();
-	virtual void RefreshCursorVisibility();
+	UE_API virtual void RefreshCursorSettings();
+	UE_API virtual void RefreshCursorVisibility();
 	
-	virtual void HandleInputMethodChanged(ECommonInputType NewInputMethod);
+	UE_API virtual void HandleInputMethodChanged(ECommonInputType NewInputMethod);
 	
-	bool IsUsingGamepad() const;
+	UE_API bool IsUsingGamepad() const;
 
-	bool ShouldHideCursor() const;
+	UE_API bool ShouldHideCursor() const;
 
 	// Knowingly unorthodox member reference to a UObject - ok because we are a subobject of the owning router and will never outlive it
 	const UCommonUIActionRouterBase& ActionRouter;
@@ -120,6 +122,4 @@ private:
 #endif
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Layout/Geometry.h"
-#endif
+#undef UE_API

@@ -77,7 +77,8 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	const UCommonInputPlatformSettings* Settings = UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>();
 
 	GamepadInputType = Settings->GetDefaultGamepadName();
-	CurrentInputType = LastInputType = Settings->GetDefaultInputType();
+	RawInputType = Settings->GetDefaultInputType();
+	CurrentInputType = RawInputType;
 
 	CommonInputPreprocessor = MakeInputProcessor();
 	if (FSlateApplication::IsInitialized())
@@ -88,18 +89,6 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonInputSubsystem::Tick), 0.1f);
 
 	CVarInputKeysVisible->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCommonInputSubsystem::ShouldShowInputKeysChanged));
-
-	if (ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport())
-	{
-		if (ULocalPlayer* LocalPlayer = GetLocalPlayerChecked())
-		{
-			if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-			{
-				BroadcastInputMethodChangedEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCommonInputSubsystem, BroadcastInputMethodChanged));
-				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.AddUnique(BroadcastInputMethodChangedEvent);
-			}
-		}
-	}
 
 	SetActionDomainTable(FCommonInputBase::GetInputSettings()->GetActionDomainTable());
 }
@@ -112,18 +101,6 @@ void UCommonInputSubsystem::Deinitialize()
 		FSlateApplication::Get().UnregisterInputPreProcessor(CommonInputPreprocessor);
 	}
 	CommonInputPreprocessor.Reset();
-
-	if (ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport())
-	{
-		if (ULocalPlayer* LocalPlayer = GetLocalPlayerChecked())
-		{
-			if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-			{
-				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.Remove(BroadcastInputMethodChangedEvent);
-				BroadcastInputMethodChangedEvent.Unbind();
-			}
-		}
-	}
 
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 }
@@ -161,7 +138,7 @@ void UCommonInputSubsystem::AddOrRemoveInputTypeLock(FName InReason, ECommonInpu
 	}
 
 	int32 ComputedInputLock = INDEX_NONE;
-	for (auto Entry : CurrentInputLocks)
+	for (const TPair<FName, ECommonInputType>& Entry : CurrentInputLocks)
 	{
 		// Take the most restrictive lock, e.g. Gamepad lock is more restrictive than a Keyboard/Mouse lock.
 		if (((int32)Entry.Value) > ComputedInputLock)
@@ -179,15 +156,7 @@ void UCommonInputSubsystem::AddOrRemoveInputTypeLock(FName InReason, ECommonInpu
 		CurrentInputLock = (ECommonInputType)ComputedInputLock;
 	}
 
-	const ECommonInputType PreviousInput = CurrentInputType;
-
-	// If a lock was put in place, lock the current input type.
-	CurrentInputType = LockInput(LastInputType);
-
-	if (CurrentInputType != PreviousInput)
-	{
-		BroadcastInputMethodChanged();
-	}
+	RecalculateCurrentInputType();
 }
 
 bool UCommonInputSubsystem::IsInputMethodActive(ECommonInputType InputMethod) const
@@ -279,68 +248,71 @@ bool UCommonInputSubsystem::CheckForInputMethodThrashing(ECommonInputType NewInp
 	return false;
 }
 
+void UCommonInputSubsystem::RecalculateCurrentInputType()
+{
+	ECommonInputType LockedInput = LockInput(RawInputType);
+
+	if (LockedInput != CurrentInputType)
+	{
+#if !UE_BUILD_SHIPPING
+		if (bDumpInputTypeChangeCallstack)
+		{
+			const uint32 DumpCallstackSize = 65535;
+			ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
+			FString ScriptStack = FFrame::GetScriptCallstack(true /* bReturnEmpty */);
+			FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 0);
+			UE_LOG(LogCommonInput, Log, TEXT("--- Input Changing Callstack ---"));
+			UE_LOG(LogCommonInput, Log, TEXT("Script Stack:\n%s"), *ScriptStack);
+			UE_LOG(LogCommonInput, Log, TEXT("Callstack:\n%s"), ANSI_TO_TCHAR(DumpCallstack));
+		}
+#endif // !UE_BUILD_SHIPPING
+		
+		CurrentInputType = LockedInput;
+
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		ULocalPlayer* LocalPlayer = GetLocalPlayerChecked();
+		bool bCursorUser = LocalPlayer && LocalPlayer->GetSlateUser() == SlateApplication.GetCursorUser();
+
+		switch (CurrentInputType)
+		{
+		case ECommonInputType::Gamepad:
+			UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::RecalculateCurrentInputType(): Using Gamepad"));
+			if (bCursorUser)
+			{
+				SlateApplication.UsePlatformCursorForCursorUser(bEnableGamepadPlatformCursor);
+			}
+			SlateApplication.SetGameAllowsFakingTouchEvents(false);
+			break;
+		case ECommonInputType::Touch:
+			UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::RecalculateCurrentInputType(): Using Touch"));
+			SlateApplication.SetGameAllowsFakingTouchEvents(true);
+			SlateApplication.SetGameIsFakingTouchEvents(LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->GetUseMouseForTouch());
+			break;
+		case ECommonInputType::MouseAndKeyboard:
+		default:				
+			UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::RecalculateCurrentInputType(): Using Mouse"));
+			if (bCursorUser)
+			{
+				SlateApplication.UsePlatformCursorForCursorUser(true);
+			}
+			SlateApplication.SetGameAllowsFakingTouchEvents(false);
+			break;
+		}
+
+		BroadcastInputMethodChanged();
+	}
+}
+
 void UCommonInputSubsystem::SetCurrentInputType(ECommonInputType NewInputType)
 {
-	if ((LastInputType != NewInputType) && PlatformSupportsInputType(NewInputType))
+	if ((RawInputType != NewInputType) && PlatformSupportsInputType(NewInputType))
 	{
-		CheckForInputMethodThrashing(NewInputType);
-	
-		//If we have any locks we can't change the input mode.
-		if (!CurrentInputLocks.Num())
+		RawInputType = NewInputType;
+
+		const bool bIsLockedByThrashing = CheckForInputMethodThrashing(NewInputType);
+		if (!bIsLockedByThrashing)
 		{
-			LastInputType = NewInputType;
-
-			ECommonInputType LockedInput = LockInput(NewInputType);
-
-			if (LockedInput != CurrentInputType)
-			{
-#if !UE_BUILD_SHIPPING
-				if (bDumpInputTypeChangeCallstack)
-				{
-					const uint32 DumpCallstackSize = 65535;
-					ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
-					FString ScriptStack = FFrame::GetScriptCallstack(true /* bReturnEmpty */);
-					FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 0);
-					UE_LOG(LogCommonInput, Log, TEXT("--- Input Changing Callstack ---"));
-					UE_LOG(LogCommonInput, Log, TEXT("Script Stack:\n%s"), *ScriptStack);
-					UE_LOG(LogCommonInput, Log, TEXT("Callstack:\n%s"), ANSI_TO_TCHAR(DumpCallstack));
-				}
-#endif // !UE_BUILD_SHIPPING
-				
-				CurrentInputType = LockedInput;
-
-				FSlateApplication& SlateApplication = FSlateApplication::Get();
-				ULocalPlayer* LocalPlayer = GetLocalPlayerChecked();
-				bool bCursorUser = LocalPlayer && LocalPlayer->GetSlateUser() == SlateApplication.GetCursorUser();
-
-				switch (CurrentInputType)
-				{
-				case ECommonInputType::Gamepad:
-					UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::SetCurrentInputType(): Using Gamepad"));
-					if (bCursorUser)
-					{
-						SlateApplication.UsePlatformCursorForCursorUser(bEnableGamepadPlatformCursor);
-					}
-					SlateApplication.SetGameAllowsFakingTouchEvents(false);
-					break;
-				case ECommonInputType::Touch:
-					UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::SetCurrentInputType(): Using Touch"));
-					SlateApplication.SetGameAllowsFakingTouchEvents(true);
-					SlateApplication.SetGameIsFakingTouchEvents(LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->GetUseMouseForTouch());
-					break;
-				case ECommonInputType::MouseAndKeyboard:
-				default:				
-					UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem::SetCurrentInputType(): Using Mouse"));
-					if (bCursorUser)
-					{
-						SlateApplication.UsePlatformCursorForCursorUser(true);
-					}
-					SlateApplication.SetGameAllowsFakingTouchEvents(false);
-					break;
-				}
-
-				BroadcastInputMethodChanged();
-			}
+			RecalculateCurrentInputType();
 		}
 	}
 }
@@ -366,7 +338,7 @@ bool UCommonInputSubsystem::IsUsingPointerInput() const
 {
 	bool bUsingPointerInput = false;
 
-	switch (LastInputType)
+	switch (RawInputType)
 	{
 		case ECommonInputType::MouseAndKeyboard:
 		case ECommonInputType::Touch:

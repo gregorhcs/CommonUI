@@ -7,6 +7,8 @@
 
 #include "UITag.generated.h"
 
+#define UE_API COMMONUI_API
+
 /** 
  * Implementation utility for typed subclasses of FGameplayTag. 
  * Implemented here instead of directly within the macro to make debugging possible. 
@@ -143,7 +145,7 @@ struct FUIActionTag : public FUITag
 //	END_UI_TAG_DECL(FUIPedestalTag, TEXT("UI.Pedestal"))
 //};
 
-struct COMMONUI_API FGlobalUITags : public FGameplayTagNativeAdder
+struct FGlobalUITags : public FGameplayTagNativeAdder
 {
 	FUIActionTag UIAction_Cancel;
 	FUIActionTag UIAction_PreviousTab;
@@ -163,5 +165,7 @@ struct COMMONUI_API FGlobalUITags : public FGameplayTagNativeAdder
 	FORCEINLINE static const FGlobalUITags& Get() { return GUITags; }
 
 private:
-	static FGlobalUITags GUITags;
+	static UE_API FGlobalUITags GUITags;
 };
+
+#undef UE_API

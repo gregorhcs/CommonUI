@@ -5,43 +5,46 @@
 #include "CommonTextBlock.h"
 #include "CommonDateTimeTextBlock.generated.h"
 
-UCLASS(BlueprintType)
-class COMMONUI_API UCommonDateTimeTextBlock : public UCommonTextBlock
+#define UE_API COMMONUI_API
+
+UCLASS(MinimalAPI, BlueprintType)
+class UCommonDateTimeTextBlock : public UCommonTextBlock
 {
 	GENERATED_BODY()
 
 public:
-	UCommonDateTimeTextBlock(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonDateTimeTextBlock(const FObjectInitializer& ObjectInitializer);
 
 	DECLARE_EVENT(UCommonDateTimeTextBlock, FOnTimeCountDownCompletion);
 	FOnTimeCountDownCompletion& OnTimeCountDownCompletion() const { return OnTimeCountDownCompletionEvent; }
 
 #if WITH_EDITOR
-	const FText GetPaletteCategory() override;
+	UE_API const FText GetPaletteCategory() override;
 #endif // WITH_EDITOR
 
-	virtual void SynchronizeProperties() override;
+	UE_API virtual void SynchronizeProperties() override;
 
 	UFUNCTION(BlueprintCallable, Category = "DateTime Text Block")
-	void SetDateTimeValue(const FDateTime InDateTime, bool bShowAsCountdown, float InRefreshDelay = 1.0f);
+	UE_API void SetDateTimeValue(const FDateTime InDateTime, bool bShowAsCountdown, float InRefreshDelay = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "DateTime Text Block")
-	void SetTimespanValue(const FTimespan InTimespan);
+	UE_API void SetTimespanValue(const FTimespan InTimespan);
 
 	UFUNCTION(BlueprintCallable, Category = "DateTime Text Block")
-	void SetCountDownCompletionText(const FText InCompletionText);
+	UE_API void SetCountDownCompletionText(const FText InCompletionText);
 
 	UFUNCTION(BlueprintCallable, Category = "DateTime Text Block")
-	FDateTime GetDateTime() const;
+	UE_API FDateTime GetDateTime() const;
 
 protected:
 	
-	void UpdateUnderlyingText();
+	UE_API void UpdateUnderlyingText();
 
-	virtual bool ShouldClearTimer(const FTimespan& TimeRemaining) const;
+	UE_API virtual FDateTime GetTimespanStartingTime() const;
+	UE_API virtual bool ShouldClearTimer(const FTimespan& TimeRemaining) const;
 
-	virtual TOptional<FText> FormatTimespan(const FTimespan& InTimespan) const;
-	virtual TOptional<FText> FormatDateTime(const FDateTime& InDateTime) const;
+	UE_API virtual TOptional<FText> FormatTimespan(const FTimespan& InTimespan) const;
+	UE_API virtual TOptional<FText> FormatDateTime(const FDateTime& InDateTime) const;
 
 	int32 GetLastDaysCount() const { return LastDaysCount; }
 	int32 GetLastHoursCount() const { return LastHoursCount; }
@@ -75,5 +78,7 @@ private:
 
 	mutable FOnTimeCountDownCompletion OnTimeCountDownCompletionEvent;
 
-	void TimerTick();
+	UE_API void TimerTick();
 };
+
+#undef UE_API

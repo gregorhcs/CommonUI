@@ -6,6 +6,8 @@
 
 #include "CommonRichTextBlock.generated.h"
 
+#define UE_API COMMONUI_API
+
 class ITextDecorator;
 enum class ETextTransformPolicy : uint8;
 
@@ -29,8 +31,8 @@ enum class ERichTextInlineIconDisplayMode : uint8
 /**
  * Text block that supports custom scaling for mobile platforms, with option to only show icons if space is sparse.
  */
-UCLASS()
-class COMMONUI_API UCommonRichTextBlock : public URichTextBlock
+UCLASS(MinimalAPI)
+class UCommonRichTextBlock : public URichTextBlock
 {
 	GENERATED_BODY()
 
@@ -39,17 +41,20 @@ public:
 	TSubclassOf<UCommonTextStyle> GetDefaultTextStyleClass() const { return DefaultTextStyleOverrideClass; }
 	float GetMobileTextBlockScale() const { return MobileTextBlockScale; }
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void SetText(const FText& InText) override;
+	UE_API virtual void Serialize(FArchive& Ar) override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SetText(const FText& InText) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Common Rich Text")
+	UE_API void SetStyle(const TSubclassOf<UCommonTextStyle>& InStyle);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Rich Text|Scroll Style")
-	void SetScrollingEnabled(bool bInIsScrollingEnabled);
+	UE_API void SetScrollingEnabled(bool bInIsScrollingEnabled);
 
 #if WITH_EDITOR
-	virtual void OnCreationFromPalette() override;
-	const FText GetPaletteCategory() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const;
+	UE_API virtual void OnCreationFromPalette() override;
+	UE_API const FText GetPaletteCategory() override;
+	UE_API virtual bool CanEditChange(const FProperty* InProperty) const;
 #endif
 
 	UPROPERTY(EditAnywhere, Category = InlineIcon)
@@ -58,18 +63,18 @@ public:
 	/** Toggle it on if the text color should also tint the inline icons. */
 	UPROPERTY(EditAnywhere, Category = InlineIcon)
 	bool bTintInlineIcon = false;
-	static FString EscapeStringForRichText(FString InString);
+	static UE_API FString EscapeStringForRichText(FString InString);
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
-	virtual void CreateDecorators(TArray<TSharedRef<ITextDecorator>>& OutDecorators) override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void SynchronizeProperties() override;
+	UE_API virtual void CreateDecorators(TArray<TSharedRef<ITextDecorator>>& OutDecorators) override;
 
-	virtual void ApplyUpdatedDefaultTextStyle() override;
+	UE_API virtual void ApplyUpdatedDefaultTextStyle() override;
 
 private:
-	void RefreshOverrideStyle();
-	void ApplyTextBlockScale() const;
+	UE_API void RefreshOverrideStyle();
+	UE_API void ApplyTextBlockScale() const;
 
 private:
 	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
@@ -82,6 +87,10 @@ private:
 	/** References the scroll style asset to use, no reference disables scrolling*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
+
+	/** The orientation the text will scroll if out of bounds. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	TEnumAsByte<EOrientation> ScrollOrientation = Orient_Horizontal;
 
 	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
@@ -98,6 +107,4 @@ private:
 	TSharedPtr<STextScroller> MyTextScroller;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Styling/SlateBrush.h"
-#endif
+#undef UE_API

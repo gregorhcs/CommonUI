@@ -8,25 +8,27 @@
 #include "CommonBorder.h"
 #include "CommonUIEditorSettings.generated.h"
 
-UCLASS(config = Editor, defaultconfig)
-class COMMONUI_API UCommonUIEditorSettings : public UObject
+#define UE_API COMMONUI_API
+
+UCLASS(MinimalAPI, config = Editor, defaultconfig)
+class UCommonUIEditorSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UCommonUIEditorSettings(const FObjectInitializer& Initializer);
+	UE_API UCommonUIEditorSettings(const FObjectInitializer& Initializer);
 #if WITH_EDITOR
 	/* Called to load CommonUIEditorSettings data */
-	void LoadData();
+	UE_API void LoadData();
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 	/*  Template Styles - Only accessible in editor builds should be transfered to new widgets in OnCreationFromPalette() overrides */
-	const TSubclassOf<UCommonTextStyle>& GetTemplateTextStyle() const;
+	UE_API const TSubclassOf<UCommonTextStyle>& GetTemplateTextStyle() const;
 
-	const TSubclassOf<UCommonButtonStyle>& GetTemplateButtonStyle() const;
+	UE_API const TSubclassOf<UCommonButtonStyle>& GetTemplateButtonStyle() const;
 
-	const TSubclassOf<UCommonBorderStyle>& GetTemplateBorderStyle() const;
+	UE_API const TSubclassOf<UCommonBorderStyle>& GetTemplateBorderStyle() const;
 
 private:
 	void LoadEditorData();
@@ -59,14 +61,4 @@ private:
 	bool bDefaultDataLoaded;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "CoreMinimal.h"
-#include "Engine/StreamableManager.h"
-#include "ICommonUIModule.h"
-#include "InputCoreTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
-#endif
+#undef UE_API

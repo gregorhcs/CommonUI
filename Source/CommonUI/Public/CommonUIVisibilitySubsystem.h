@@ -7,6 +7,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "CommonUIVisibilitySubsystem.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UWidget;
 class ULocalPlayer;
 class APlayerController;
@@ -16,21 +18,21 @@ enum class ECommonInputType : uint8;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHardwareVisibilityTagsChangedDynamicEvent, UCommonUIVisibilitySubsystem*, TagSubsystem);
 
-UCLASS(DisplayName = "UI Visibility Subsystem")
-class COMMONUI_API UCommonUIVisibilitySubsystem : public ULocalPlayerSubsystem
+UCLASS(MinimalAPI, DisplayName = "UI Visibility Subsystem")
+class UCommonUIVisibilitySubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	static UCommonUIVisibilitySubsystem* Get(const ULocalPlayer* LocalPlayer);
-	static UCommonUIVisibilitySubsystem* GetChecked(const ULocalPlayer* LocalPlayer);
+	static UE_API UCommonUIVisibilitySubsystem* Get(const ULocalPlayer* LocalPlayer);
+	static UE_API UCommonUIVisibilitySubsystem* GetChecked(const ULocalPlayer* LocalPlayer);
 
-	UCommonUIVisibilitySubsystem();
+	UE_API UCommonUIVisibilitySubsystem();
 	
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	UE_API virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UE_API virtual void Deinitialize() override;
 
 	DECLARE_EVENT_OneParam(UCommonUIVisibilitySubsystem, FHardwareVisibilityTagsChangedEvent, UCommonUIVisibilitySubsystem*);
 	FHardwareVisibilityTagsChangedEvent OnVisibilityTagsChanged;
@@ -46,23 +48,25 @@ public:
 	 */
 	bool HasVisibilityTag(const FGameplayTag VisibilityTag) const { return ComputedVisibilityTags.HasTag(VisibilityTag); }
 
-	void AddUserVisibilityCondition(const FGameplayTag UserTag);
-	void RemoveUserVisibilityCondition(const FGameplayTag UserTag);
+	UE_API void AddUserVisibilityCondition(const FGameplayTag UserTag);
+	UE_API void RemoveUserVisibilityCondition(const FGameplayTag UserTag);
 
 #if WITH_EDITOR
-	static void SetDebugVisibilityConditions(const FGameplayTagContainer& TagsToEnable, const FGameplayTagContainer& TagsToSuppress);
+	static UE_API void SetDebugVisibilityConditions(const FGameplayTagContainer& TagsToEnable, const FGameplayTagContainer& TagsToSuppress);
 #endif
 
 protected:
-	void RefreshVisibilityTags();
-	void OnInputMethodChanged(ECommonInputType CurrentInputType);
-	FGameplayTagContainer ComputeVisibilityTags() const;
+	UE_API void RefreshVisibilityTags();
+	UE_API void OnInputMethodChanged(ECommonInputType CurrentInputType);
+	UE_API virtual FGameplayTagContainer ComputeVisibilityTags() const;
 
 private:
 	FGameplayTagContainer ComputedVisibilityTags;
 	FGameplayTagContainer UserVisibilityTags;
 #if WITH_EDITOR
-	static FGameplayTagContainer DebugTagsToEnable;
-	static FGameplayTagContainer DebugTagsToSuppress;
+	static UE_API FGameplayTagContainer DebugTagsToEnable;
+	static UE_API FGameplayTagContainer DebugTagsToSuppress;
 #endif
 };
+
+#undef UE_API

@@ -22,10 +22,6 @@ UCommonGameViewportClient::UCommonGameViewportClient(FVTableHelper& Helper) : Su
 {
 }
 
-UCommonGameViewportClient::~UCommonGameViewportClient()
-{
-}
-
 bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
 	FInputKeyEventArgs EventArgs = InEventArgs;
@@ -64,33 +60,42 @@ bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 	return Super::InputKey(EventArgs);
 }
 
-bool UCommonGameViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId InputDevice, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+bool UCommonGameViewportClient::InputAxis(const FInputKeyEventArgs& Args)
 {
 	FReply RerouteResult = FReply::Unhandled();
 
-	if (!OnRerouteAxis().ExecuteIfBound(InputDevice, Key, Delta, RerouteResult))
+	if (!OnRerouteAxis().ExecuteIfBound(Args.InputDevice, Args.Key, Args.AmountDepressed, RerouteResult))
 	{
-		HandleRerouteAxis(InputDevice, Key, Delta, RerouteResult);
+		HandleRerouteAxis(Args.InputDevice, Args.Key, Args.AmountDepressed, RerouteResult);
 	}
 
 	if (RerouteResult.IsEventHandled())
 	{
 		return true;
 	}
-	return Super::InputAxis(InViewport, InputDevice, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	return Super::InputAxis(Args);
 }
 
-bool UCommonGameViewportClient::InputTouch(FViewport* InViewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
+bool UCommonGameViewportClient::InputTouch(FViewport* InViewport, const FInputDeviceId DeviceId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, uint32 TouchpadIndex, const uint64 Timestamp)
 {
 #if ALLOW_CONSOLE
-	if (ViewportConsole != NULL && (ViewportConsole->ConsoleState != NAME_Typing) && (ViewportConsole->ConsoleState != NAME_Open))
+	if (ViewportConsole != nullptr && (ViewportConsole->ConsoleState != NAME_Typing) && (ViewportConsole->ConsoleState != NAME_Open))
 #endif
 	{
 		FReply Result = FReply::Unhandled();
-		if (!OnRerouteTouch().ExecuteIfBound(ControllerId, Handle, Type, TouchLocation, Result))
+
+		// Remap the newer FInputDeviceId to the old int32 ControllerId for deprecated code. This can be removed
+		// when OnRerouteTouch() is removed.
+		const FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceId);
+		int32 ControllerId = IPlatformInputDeviceMapper::Get().GetUserIndexForPlatformUser(UserId);
+		 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (!OnRerouteTouchInput().ExecuteIfBound(DeviceId, Handle, Type, TouchLocation, Result) &&
+			!OnRerouteTouch().ExecuteIfBound(ControllerId, Handle, Type, TouchLocation, Result))
 		{
-			HandleRerouteTouch(ControllerId, Handle, Type, TouchLocation, Result);
+			HandleRerouteTouch(DeviceId, Handle, Type, TouchLocation, Result);
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (Result.IsEventHandled())
 		{
@@ -98,7 +103,7 @@ bool UCommonGameViewportClient::InputTouch(FViewport* InViewport, int32 Controll
 		}
 	}
 
-	return Super::InputTouch(InViewport, ControllerId, Handle, Type, TouchLocation, Force, DeviceTimestamp, TouchpadIndex);
+	return Super::InputTouch(InViewport, DeviceId, Handle, Type, TouchLocation, Force, TouchpadIndex, Timestamp);
 }
 
 void UCommonGameViewportClient::MouseMove(FViewport* InViewport, int32 X, int32 Y)
@@ -144,15 +149,6 @@ void UCommonGameViewportClient::HandleRerouteInput(FInputDeviceId DeviceId, FKey
 	}	
 }
 
-void UCommonGameViewportClient::HandleRerouteInput(int32 ControllerId, FKey Key, EInputEvent EventType, FReply& Reply)
-{
-	// Remap the old int32 ControllerId to the new platform user and input device ID
-	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
-	FInputDeviceId DeviceID = INPUTDEVICEID_NONE;
-	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceID);
-	return HandleRerouteInput(DeviceID, Key, EventType, Reply);
-}
-
 void UCommonGameViewportClient::HandleRerouteAxis(FInputDeviceId DeviceId, FKey Key, float Delta, FReply& Reply)
 {
 	// Get the ownign platform user for this input device and their local player
@@ -175,19 +171,9 @@ void UCommonGameViewportClient::HandleRerouteAxis(FInputDeviceId DeviceId, FKey 
 	}
 }
 
-void UCommonGameViewportClient::HandleRerouteAxis(int32 ControllerId, FKey Key, float Delta, FReply& Reply)
+void UCommonGameViewportClient::HandleRerouteTouch(FInputDeviceId DeviceId, uint32 TouchId, ETouchType::Type TouchType, const FVector2D& TouchLocation, FReply& Reply)
 {
-	// Remap the old int32 ControllerId to the new platform user and input device ID
-	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
-	FInputDeviceId DeviceID = INPUTDEVICEID_NONE;
-	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceID);
-	
-	return HandleRerouteAxis(DeviceID, Key, Delta, Reply);
-}
-
-void UCommonGameViewportClient::HandleRerouteTouch(int32 ControllerId, uint32 TouchId, ETouchType::Type TouchType, const FVector2D& TouchLocation, FReply& Reply)
-{
-	ULocalPlayer* LocalPlayer = GameInstance->FindLocalPlayerFromControllerId(ControllerId);
+	ULocalPlayer* LocalPlayer = GameInstance->FindLocalPlayerFromDeviceId(DeviceId);
 	Reply = FReply::Unhandled();
 
 	if (LocalPlayer && TouchId < EKeys::NUM_TOUCH_KEYS)
@@ -220,6 +206,18 @@ void UCommonGameViewportClient::HandleRerouteTouch(int32 ControllerId, uint32 To
 		}
 	}
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UCommonGameViewportClient::HandleRerouteTouch(int32 ControllerId, uint32 TouchId, ETouchType::Type TouchType, const FVector2D& TouchLocation, FReply& Reply)
+{
+	// Remap the old int32 ControllerId to the new platform user and input device ID
+	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
+	FInputDeviceId DeviceID = INPUTDEVICEID_NONE;
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceID);
+	
+	return HandleRerouteTouch(DeviceID, TouchId, TouchType, TouchLocation, Reply);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UCommonGameViewportClient::IsKeyPriorityAboveUI(const FInputKeyEventArgs& EventArgs)
 {
