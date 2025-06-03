@@ -13,6 +13,7 @@ UE_DEFINE_GAMEPLAY_TAG(TAG_PlatformTrait_PlayInEditor, "Platform.Trait.PlayInEdi
 UCommonUISettings::UCommonUISettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 	, bAutoLoadData(true)
+	, CommonButtonAcceptKeyHandling(ECommonButtonAcceptKeyHandling::Ignore)
 	, bDefaultDataLoaded(false)
 {}
 
@@ -174,4 +175,9 @@ const FGameplayTagContainer& UCommonUISettings::GetPlatformTraits() const
 #endif
 
 	return PlatformTraitContainer;
+}
+
+ECommonButtonAcceptKeyHandling UCommonUISettings::GetCommonButtonAcceptKeyHandling() const
+{
+	return CommonButtonAcceptKeyHandling;
 }

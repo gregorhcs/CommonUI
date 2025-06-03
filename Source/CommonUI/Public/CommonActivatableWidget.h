@@ -6,11 +6,22 @@
 #include "CommonInputActionDomain.h"
 #include "CommonActivatableWidget.generated.h"
 
+#define UE_API COMMONUI_API
+
 class FActivatableTreeNode;
 class UCommonInputActionDomain;
 class UInputMappingContext;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
+
+/**
+ * Metadata set on UCommonActivatableWidget's underlying slate widget to allow Slate -> UMG lookup
+ */
+class FCommonActivatableSlateMetaData : public ISlateMetaData
+{
+public:
+	SLATE_METADATA_TYPE(FCommonActivatableSlateMetaData, ISlateMetaData);
+};
 
 /** 
  * The base for widgets that are capable of being "activated" and "deactivated" during their lifetime without being otherwise modified or destroyed. 
@@ -28,8 +39,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
  * Note that removing an activatable widget from the UI (i.e. triggering Destruct()) will always deactivate it, even if the UWidget is not destroyed.
  * Re-constructing the underlying SWidget will only result in re-activation if auto-activate is enabled.
  */
-UCLASS(meta = (DisableNativeTick))
-class COMMONUI_API UCommonActivatableWidget : public UCommonUserWidget
+UCLASS(MinimalAPI, meta = (DisableNativeTick))
+class UCommonActivatableWidget : public UCommonUserWidget
 {
 	GENERATED_BODY()
 
@@ -38,10 +49,10 @@ public:
 	bool IsActivated() const { return bIsActive; }
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	void ActivateWidget();
+	UE_API void ActivateWidget();
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	void DeactivateWidget();
+	UE_API void DeactivateWidget();
 	
 	/**
 	 * Visibilities to use for when bound widgets in BindVisibilityToActivation are activated.
@@ -51,7 +62,7 @@ public:
 	 * @param	bInAllActive			- True if we should switch to activated visibility only when all bound widgets are active
 	 */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget, meta=(BlueprintProtected = "true"))
-	void SetBindVisibilities(ESlateVisibility OnActivatedVisibility, ESlateVisibility OnDeactivatedVisibility, UPARAM(DisplayName = "All Active") bool bInAllActive);
+	UE_API void SetBindVisibilities(ESlateVisibility OnActivatedVisibility, ESlateVisibility OnDeactivatedVisibility, UPARAM(DisplayName = "All Active") bool bInAllActive);
 
 	/**
 	 * Bind our visibility to the activation of another widget, useful for making mouse collisions behave similiar to console navigation w.r.t activation
@@ -60,15 +71,15 @@ public:
 	 * @param	ActivatableWidget		- The widget whose activation / deactivation will modify our visibility 
 	 */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	void BindVisibilityToActivation(UCommonActivatableWidget* ActivatableWidget);
+	UE_API void BindVisibilityToActivation(UCommonActivatableWidget* ActivatableWidget);
 
 	/** Returns the desired widget to focus when this Widget Activates. */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	UWidget* GetDesiredFocusTarget() const;
+	UE_API UWidget* GetDesiredFocusTarget() const;
 
 	/** Clears the cached focus target that's set when bAutoRestoreFocus is true */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	void ClearFocusRestorationTarget();
+	UE_API void ClearFocusRestorationTarget();
 
 	FSimpleMulticastDelegate& OnActivated() const { return OnActivatedEvent; }
 	FSimpleMulticastDelegate& OnDeactivated() const { return OnDeactivatedEvent; }
@@ -78,20 +89,20 @@ public:
 	/**
 	 * Gets custom game-specific activation metadata for this widget. By default does nothing & used for nothing.
 	 */
-	virtual TOptional<FActivationMetadata> GetActivationMetadata() const;
+	UE_API virtual TOptional<FActivationMetadata> GetActivationMetadata() const;
 
 	/**
 	 * Gets the desired input configuration to establish when this widget activates and can receive input (i.e. all parents are also active).
 	 * This configuration will override the existing one established by any previous activatable widget and restore it (if valid) upon deactivation.
 	 */
-	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const;
+	UE_API virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const;
 
 	bool IsModal() const { return bIsModal; }
 	bool SupportsActivationFocus() const { return bSupportsActivationFocus; }
 	bool AutoRestoresFocus() const { return bSupportsActivationFocus && bAutoRestoreFocus; }
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActivatableWidgetRebuildEvent, UCommonActivatableWidget&);
-	static FActivatableWidgetRebuildEvent OnRebuilding;
+	static UE_API FActivatableWidgetRebuildEvent OnRebuilding;
 	
 	FSimpleMulticastDelegate& OnSlateReleased() const { return OnSlateReleasedEvent; }
 
@@ -100,33 +111,40 @@ public:
 	bool SetsVisibilityOnActivated() const { return bSetVisibilityOnActivated; }
 	bool SetsVisibilityOnDeactivated() const { return bSetVisibilityOnDeactivated; }
 
-	TWeakPtr<FActivatableTreeNode> GetInputTreeNode() const;
-	void RegisterInputTreeNode(const TSharedPtr<FActivatableTreeNode>& OwnerNode);
-	void ClearActiveHoldInputs();
+	UE_API TWeakPtr<FActivatableTreeNode> GetInputTreeNode() const;
+	UE_API void RegisterInputTreeNode(const TSharedPtr<FActivatableTreeNode>& OwnerNode);
+	UE_API void ClearActiveHoldInputs();
 
 	/**
 	 * Returns the widget's ActionDomain, respecting any inheritance requirements.
 	 */
-	TObjectPtr<UCommonInputActionDomain> GetCalculatedActionDomain();
+	UE_API TObjectPtr<UCommonInputActionDomain> GetCalculatedActionDomain();
+
+	/**
+	 * Reset the Action Domain cached by GetCalculatedActionDomain()
+	 * Call this when updating this widget or a parent widget's action domain
+	 */
+	UE_API void ResetCalculatedActionDomainCache();
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void OnWidgetRebuilt() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void NativeConstruct() override;
+	UE_API virtual void NativeDestruct() override;
 
 	/**
 	 * Override to provide the desired widget that should receive focus when this becomes the primary active widget.
 	 * If bAutoRestoreFocus is true, is only called when there is no valid cached restoration target (to provide the default/fallback)
 	 */
-	virtual UWidget* NativeGetDesiredFocusTarget() const;
+	UE_API virtual UWidget* NativeGetDesiredFocusTarget() const;
 	
 	/** 
 	 * Implement to provide the desired widget to focus if/when this activatable becomes the primary active widget.
 	 * Note: This is a fallback used only if the native class parentage does not provide a target.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "Get Desired Focus Target"))
-	UWidget* BP_GetDesiredFocusTarget() const;
+	UE_API UWidget* BP_GetDesiredFocusTarget() const;
 	
 	/** 
 	 * Implement to provide the input config to use when this widget is activated. Keep in mind when all widgets
@@ -134,7 +152,7 @@ protected:
 	 * Note: This is a fallback used only if the native class parentage does not provide an input config.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "Get Desired Input Config"))
-	FUIInputConfig BP_GetDesiredInputConfig() const;
+	UE_API FUIInputConfig BP_GetDesiredInputConfig() const;
 
 	/**
 	 * Ask for focus to be re-set to our current DesiredFocusTarget,
@@ -144,25 +162,27 @@ protected:
 	 * to wrap each element in a CommonActivatableWidget.
 	 */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	void RequestRefreshFocus();
+	UE_API void RequestRefreshFocus();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "On Activated"))
-	void BP_OnActivated();
-	virtual void NativeOnActivated();
+	UE_API void BP_OnActivated();
+	UE_API virtual void NativeOnActivated();
+	UE_API virtual void ActivateMappingContext();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "On Deactivated"))
-	void BP_OnDeactivated();
-	virtual void NativeOnDeactivated();
+	UE_API void BP_OnDeactivated();
+	UE_API virtual void NativeOnDeactivated();
+	UE_API virtual void DeactivateMappingContext();
 
 	/** 
 	 * Override in BP implementations to provide custom behavior when receiving a back action 
 	 * Note: Only called if native code in the base class hasn't handled it in NativeOnHandleBackAction 
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "On Handle Back Action"))
-	bool BP_OnHandleBackAction();
-	virtual bool NativeOnHandleBackAction();
+	UE_API bool BP_OnHandleBackAction();
+	UE_API virtual bool NativeOnHandleBackAction();
 
-	void HandleBackAction();
+	UE_API void HandleBackAction();
 
 	/** True to receive "Back" actions automatically. Custom back handler behavior can be provided, default is to deactivate. */
 	UPROPERTY(EditAnywhere, Category = Back)
@@ -171,6 +191,10 @@ protected:
 	/** True to receive "Back" actions automatically. Custom back handler behavior can be provided, default is to deactivate. */
 	UPROPERTY(EditAnywhere, Category = Back)
 	bool bIsBackActionDisplayedInActionBar = false;
+
+	/** You can specify an override for display name for the back action. If left empty, the default will be used. */
+	UPROPERTY(EditAnywhere, Category = Back)
+	FText OverrideBackActionDisplayName;
 
 	/** True to automatically activate upon construction */
 	UPROPERTY(EditAnywhere, Category = Activation)
@@ -218,7 +242,7 @@ protected:
 
 private:
 	/** See BindVisibilityToMultipleActivations */
-	void HandleVisibilityBoundWidgetActivations();
+	UE_API void HandleVisibilityBoundWidgetActivations();
 
 	/** Fires when the widget is activated. */
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Widget Activated"))
@@ -271,11 +295,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = "bSetVisibilityOnDeactivated"))
 	ESlateVisibility DeactivatedVisibility = ESlateVisibility::Collapsed;
 	
-	virtual void InternalProcessActivation();
-	virtual void InternalProcessDeactivation();
-	void Reset();
+	UE_API virtual void InternalProcessActivation();
+	UE_API virtual void InternalProcessDeactivation();
+	UE_API void Reset();
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Input/UIActionBindingHandle.h"
-#endif
+#undef UE_API

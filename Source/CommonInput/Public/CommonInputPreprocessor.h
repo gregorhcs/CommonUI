@@ -9,44 +9,42 @@
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/SlateTypes.h"
-#endif
+#define UE_API COMMONINPUT_API
 
 /**
  * Helper class that is designed to fire before any UI has a chance to process input so that
  * we can properly set the current input type of the application.
  */
-class COMMONINPUT_API FCommonInputPreprocessor : public IInputProcessor
+class FCommonInputPreprocessor : public IInputProcessor
 {
 public:
-	FCommonInputPreprocessor(UCommonInputSubsystem& InCommonInputSubsystem);
+	UE_API FCommonInputPreprocessor(UCommonInputSubsystem& InCommonInputSubsystem);
 
 	//~ Begin IInputProcessor Interface
-	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
-	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
-	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
-	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
-	virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
-	virtual bool HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
+	UE_API virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	UE_API virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
+	UE_API virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual bool HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& InPointerEvent) override;
+	UE_API virtual bool HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InWheelEvent, const FPointerEvent* InGestureEvent) override;
 	virtual const TCHAR* GetDebugName() const override { return TEXT("CommonInput"); }
 	//~ End IInputProcessor Interface
 
-	void SetInputTypeFilter(ECommonInputType InputType, FName InReason, bool InFilter);
+	UE_API void SetInputTypeFilter(ECommonInputType InputType, FName InReason, bool InFilter);
 
-	bool IsInputMethodBlocked(ECommonInputType InputType) const;
+	UE_API bool IsInputMethodBlocked(ECommonInputType InputType) const;
 
 	FGamepadChangeDetectedEvent OnGamepadChangeDetected;
 
 protected:
-	bool IsRelevantInput(FSlateApplication& SlateApp, const FInputEvent& InputEvent, const ECommonInputType DesiredInputType);
+	UE_API bool IsRelevantInput(FSlateApplication& SlateApp, const FInputEvent& InputEvent, const ECommonInputType DesiredInputType);
 
-	void RefreshCurrentInputMethod(ECommonInputType InputMethod);
+	UE_API void RefreshCurrentInputMethod(ECommonInputType InputMethod);
 
-	ECommonInputType GetInputType(const FKey& Key);
+	UE_API ECommonInputType GetInputType(const FKey& Key);
 
-	ECommonInputType GetInputType(const FPointerEvent& PointerEvent);
+	UE_API ECommonInputType GetInputType(const FPointerEvent& PointerEvent);
 	
 protected:
 	UCommonInputSubsystem& InputSubsystem;
@@ -62,3 +60,5 @@ protected:
 
 	friend class UCommonInputSubsystem;
 };
+
+#undef UE_API

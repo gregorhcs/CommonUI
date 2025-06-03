@@ -6,6 +6,8 @@
 
 #include "CommonUISubsystemBase.generated.h"
 
+#define UE_API COMMONUI_API
+
 enum class ECommonInputType : uint8;
 struct FDataTableRowHandle;
 struct FSlateBrush;
@@ -15,38 +17,38 @@ class UWidget;
 class ULocalPlayer;
 class UInputAction;
 
-UCLASS(DisplayName = "CommonUI")
-class COMMONUI_API UCommonUISubsystemBase : public UGameInstanceSubsystem
+UCLASS(MinimalAPI, DisplayName = "CommonUI")
+class UCommonUISubsystemBase : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	static UCommonUISubsystemBase* Get(const UWidget& Widget);
+	static UE_API UCommonUISubsystemBase* Get(const UWidget& Widget);
 
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UE_API virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	UE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	/** set the analytic provider for the CommonUI Widgets to use */
-	void SetAnalyticProvider(const TSharedPtr<IAnalyticsProviderET>& AnalyticProvider);
+	UE_API void SetAnalyticProvider(const TSharedPtr<IAnalyticsProviderET>& AnalyticProvider);
 
 	// Gets Action Button Icon for current gamepad
 	UFUNCTION(BlueprintCallable, Category = CommonUISubsystem)
-	FSlateBrush GetInputActionButtonIcon(const FDataTableRowHandle& InputActionRowHandle, ECommonInputType InputType, const FName& GamepadName) const;
+	UE_API FSlateBrush GetInputActionButtonIcon(const FDataTableRowHandle& InputActionRowHandle, ECommonInputType InputType, const FName& GamepadName) const;
 
 	// Gets Action Button Icon for given action and player, enhanced input API currently does not allow input type specification
 	UFUNCTION(BlueprintCallable, Category = CommonUISubsystem)
-	FSlateBrush GetEnhancedInputActionButtonIcon(const UInputAction* InputAction, const ULocalPlayer* LocalPlayer) const;
+	UE_API FSlateBrush GetEnhancedInputActionButtonIcon(const UInputAction* InputAction, const ULocalPlayer* LocalPlayer) const;
 
 	/** Analytic Events **/
 
 	//CommonUI.ButtonClicked
-	void FireEvent_ButtonClicked(const FString& InstanceName, const FString& ABTestName, const FString& ExtraData) const;
+	UE_API void FireEvent_ButtonClicked(const FString& InstanceName, const FString& ABTestName, const FString& ExtraData) const;
 
 	//CommonUI.PanelPushed
-	void FireEvent_PanelPushed(const FString& PanelName) const;
+	UE_API void FireEvent_PanelPushed(const FString& PanelName) const;
 	
-	virtual void SetInputAllowed(bool bEnabled, const FName& Reason, const ULocalPlayer& LocalPlayer);
-	virtual bool IsInputAllowed(const ULocalPlayer* LocalPlayer) const;
+	UE_API virtual void SetInputAllowed(bool bEnabled, const FName& Reason, const ULocalPlayer& LocalPlayer);
+	UE_API virtual bool IsInputAllowed(const ULocalPlayer* LocalPlayer) const;
 
 private:
 
@@ -55,7 +57,4 @@ private:
 	TWeakPtr<class IAnalyticsProviderET> AnalyticProviderWeakPtr;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Engine/DataTable.h"
-#include "Styling/SlateBrush.h"
-#endif
+#undef UE_API

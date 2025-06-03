@@ -11,6 +11,7 @@
 #include "MediaSoundComponent.h"
 #include "IMediaEventSink.h"
 #include "Widgets/Images/SImage.h"
+#include "CommonWidgetPaletteCategories.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonVideoPlayer)
 
@@ -240,6 +241,13 @@ void UCommonVideoPlayer::PlaybackTick(double InCurrentTime, float InDeltaTime)
 		SoundComponent->UpdatePlayer();
 	}
 }
+
+#if WITH_EDITOR
+const FText UCommonVideoPlayer::GetPaletteCategory()
+{
+	return CommonWidgetPaletteCategories::Default;
+}
+#endif // WITH_EDITOR
 
 EActiveTimerReturnType UCommonVideoPlayer::HandlePlaybackTick(double InCurrentTime, float InDeltaTime)
 {

@@ -141,6 +141,17 @@ void SCommonAnimatedSwitcher::SetTransition(float Duration, ETransitionCurve Cur
 	TransitionSequence = FCurveSequence(0.f, Duration * 0.5f, TransitionCurveToCurveEaseFunction(Curve));
 }
 
+void SCommonAnimatedSwitcher::SetTransition(float Duration, ETransitionCurve Curve, ECommonSwitcherTransition NewTransitionType)
+{
+	SetTransition(Duration, Curve);
+	SetTransitionType(NewTransitionType);
+}
+
+void SCommonAnimatedSwitcher::SetTransitionType(ECommonSwitcherTransition NewTransitionType)
+{
+	TransitionType = NewTransitionType;
+}
+
 void SCommonAnimatedSwitcher::OnSlotAdded(int32 AddedIndex)
 {
 	SWidgetSwitcher::OnSlotAdded(AddedIndex);
@@ -276,6 +287,14 @@ EActiveTimerReturnType SCommonAnimatedSwitcher::UpdateTransition(double InCurren
 		SetVisibility(EVisibility::SelfHitTestInvisible);
 		OnIsTransitioningChanged.ExecuteIfBound(false);
 		bIsTransitionTimerRegistered = false;
+
+		// TODO - UE-256488 - There's a bug with SlateGI where setting the visibility of this widget in the same frame as becoming non-volatile (by stopping our timer) will cause this widget to disappear for that frame, so we stay volatile for 1 more frame
+		ForceVolatile(true);
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSPLambda(this, [this](float DeltaTime)
+		{
+			ForceVolatile(false);
+			return false;
+		}));
 
 		return EActiveTimerReturnType::Stop;
 	}

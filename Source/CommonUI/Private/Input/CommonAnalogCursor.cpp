@@ -22,6 +22,11 @@
 const float AnalogScrollUpdatePeriod = 0.1f;
 const float ScrollDeadZone = 0.2f;
 
+static const TAutoConsoleVariable<bool> CVarShouldVirtualAcceptSimulateMouseButton(
+	TEXT("CommonUI.ShouldVirtualAcceptSimulateMouseButton"),
+	true,
+	TEXT("Controls if virtual_accept key events will be converted to left mouse button events."));
+
 bool IsEligibleFakeKeyPointerEvent(const FPointerEvent& PointerEvent)
 {
 	FKey EffectingButton = PointerEvent.GetEffectingButton();
@@ -70,17 +75,19 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 		RefreshCursorSettings();
 		if (!IsViewportWindowInFocusPath(ActionRouter))
 		{
+			LastCursorTarget.Reset();
 			return;
 		}
 #endif
 		if (bIsAnalogMovementEnabled)
 		{
+			LastCursorTarget.Reset();
 			const FVector2D NewPosition = CalculateTickedCursorPosition(DeltaTime, SlateApp, SlateUser);
 
 			UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
 			InputSubsystem.SetCursorPosition(NewPosition, false);
 		}
-		else
+		else if (UCommonUIInputSettings::Get().ShouldLinkCursorToGamepadFocus())
 		{
 			TSharedPtr<SWidget> PinnedLastCursorTarget = LastCursorTarget.Pin();
 
@@ -96,9 +103,27 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 					CursorTarget = SelectedRows[0]->AsWidget();
 				}
 			}
+			
+			FGeometry TargetGeometry;
+			if (CursorTarget)
+			{
+				if (CursorTarget == GetViewportClient()->GetGameViewportWidget())
+				{
+					// When the target is the game viewport as a whole, we don't want to center blindly - we want to center in the geometry of our owner's widget host layer
+					TSharedPtr<IGameLayerManager> GameLayerManager = GetViewportClient()->GetGameLayerManager();
+					if (ensure(GameLayerManager))
+					{
+						TargetGeometry = GameLayerManager->GetPlayerWidgetHostGeometry(ActionRouter.GetLocalPlayerChecked());
+					}
+				}
+				else
+				{
+					TargetGeometry = CursorTarget->GetTickSpaceGeometry();
+				}
+			}
 
 			// We want to try to update the cursor position when focus changes or the focused widget moves at all
-			if (CursorTarget != PinnedLastCursorTarget || (CursorTarget && CursorTarget->GetCachedGeometry().GetAccumulatedRenderTransform() != LastCursorTargetTransform))
+			if (CursorTarget != PinnedLastCursorTarget || (CursorTarget && TargetGeometry.GetAccumulatedRenderTransform() != LastCursorTargetTransform))
 			{
 #if !UE_BUILD_SHIPPING
 				if (CursorTarget != PinnedLastCursorTarget)
@@ -119,21 +144,6 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 				bool bHasValidCursorTarget = false;
 				if (CursorTarget)
 				{
-					FGeometry TargetGeometry; 
-					if (CursorTarget == GetViewportClient()->GetGameViewportWidget())
-					{
-						// When the target is the game viewport as a whole, we don't want to center blindly - we want to center in the geometry of our owner's widget host layer
-						TSharedPtr<IGameLayerManager> GameLayerManager = GetViewportClient()->GetGameLayerManager();
-						if (ensure(GameLayerManager))
-						{
-							TargetGeometry = GameLayerManager->GetPlayerWidgetHostGeometry(ActionRouter.GetLocalPlayerChecked());
-						}
-					}
-					else
-					{
-						TargetGeometry = CursorTarget->GetTickSpaceGeometry();
-					}
-
 					if (TargetGeometry.GetLocalSize().X > UE_SMALL_NUMBER && TargetGeometry.GetLocalSize().Y > UE_SMALL_NUMBER)
 					{
 						LastCursorTargetTransform = TargetGeometry.GetAccumulatedRenderTransform();
@@ -199,7 +209,10 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 										ScrollAmount,
 										FModifierKeysState());
 
+									UCommonInputSubsystem& InputSubsytem = ActionRouter.GetInputSubsystem();
+									InputSubsytem.SetIsGamepadSimulatedClick(true);
 									SlateApp.ProcessMouseWheelOrGestureEvent(MouseEvent, nullptr);
+									InputSubsytem.SetIsGamepadSimulatedClick(false);
 								}
 							}
 						}
@@ -207,6 +220,11 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 				}
 			}
 		}
+	}
+	else
+	{
+		// Since we're not processing cursor target this frame, the cursor position may change externally and therefore invalidate our cache
+		LastCursorTarget.Reset();
 	}
 }
 
@@ -392,6 +410,11 @@ void FCommonAnalogCursor::ShouldHandleRightAnalog(bool bInShouldHandleRightAnalo
 	bShouldHandleRightAnalog = bInShouldHandleRightAnalog;
 }
 
+bool FCommonAnalogCursor::ShouldVirtualAcceptSimulateMouseButton(const FKeyEvent& InKeyEvent, EInputEvent InputEvent) const
+{
+	return CVarShouldVirtualAcceptSimulateMouseButton.GetValueOnGameThread();
+}
+
 //void FCommonAnalogCursor::SetCursorMovementStick(EAnalogStick InCursorMovementStick)
 //{
 //	const EAnalogStick NewStick = InCursorMovementStick == EAnalogStick::Max ? EAnalogStick::Left : InCursorMovementStick;
@@ -452,9 +475,10 @@ bool FCommonAnalogCursor::IsGameViewportInFocusPathWithoutCapture() const
 #if PLATFORM_DESKTOP
 				// Not captured - is it in the focus path?
 				return SlateUser->IsWidgetInFocusPath(GameViewportWidget);
-#endif
+#else
 				// If we're not on desktop, focus on the viewport is irrelevant, as there aren't other windows around to care about
 				return true;
+#endif
 			}
 		}
 	}

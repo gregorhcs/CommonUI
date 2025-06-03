@@ -31,6 +31,11 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
 
+static const TAutoConsoleVariable<bool> CVarShouldMouseWheelAndGestureRefreshInputMethod(
+	TEXT("CommonUI.ShouldMouseWheelAndGestureRefreshInputMethod"),
+	true,
+	TEXT("Controls whether Mouse Wheel and Gesture input events should update the current input method"));
+
 FCommonInputPreprocessor::FCommonInputPreprocessor(UCommonInputSubsystem& InCommonInputSubsystem)
 	: InputSubsystem(InCommonInputSubsystem)
 	, bIgnoreNextMove(false)
@@ -113,6 +118,25 @@ bool FCommonInputPreprocessor::HandleMouseButtonDoubleClickEvent(FSlateApplicati
 			return true;
 		}
 		RefreshCurrentInputMethod(InputType);
+	}
+	return false;
+}
+
+bool FCommonInputPreprocessor::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InWheelEvent, const FPointerEvent* InGestureEvent)
+{
+	const FPointerEvent& EventToConsider = InGestureEvent ? *InGestureEvent : InWheelEvent;
+	const ECommonInputType InputType = GetInputType(EventToConsider);
+	if (IsRelevantInput(SlateApp, EventToConsider, InputType))
+	{
+		if (IsInputMethodBlocked(InputType))
+		{
+			return true;
+		}
+
+		if (CVarShouldMouseWheelAndGestureRefreshInputMethod.GetValueOnGameThread())
+		{
+			RefreshCurrentInputMethod(InputType);
+		}
 	}
 	return false;
 }

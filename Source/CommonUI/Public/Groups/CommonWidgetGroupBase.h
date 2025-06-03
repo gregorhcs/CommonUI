@@ -5,30 +5,32 @@
 #include "Components/Widget.h"
 #include "CommonWidgetGroupBase.generated.h"
 
+#define UE_API COMMONUI_API
+
 /**
  * Base class for CommonUI widget groups, currently only used for button groups
  */
-UCLASS(Abstract, BlueprintType)
-class COMMONUI_API UCommonWidgetGroupBase : public UObject
+UCLASS(MinimalAPI, Abstract, BlueprintType)
+class UCommonWidgetGroupBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UCommonWidgetGroupBase();
+	UE_API UCommonWidgetGroupBase();
 
 	virtual TSubclassOf<UWidget> GetWidgetType() const { return UWidget::StaticClass(); }
 
 	UFUNCTION(BlueprintCallable, Category = Group)
-	void AddWidget(UWidget* InWidget);
+	UE_API void AddWidget(UWidget* InWidget);
 
 	UFUNCTION(BlueprintCallable, Category = Group)
-	void AddWidgets(const TArray<UWidget*>& Widgets);
+	UE_API void AddWidgets(const TArray<UWidget*>& Widgets);
 
 	UFUNCTION(BlueprintCallable, Category = Group)
-	void RemoveWidget(UWidget* InWidget);
+	UE_API void RemoveWidget(UWidget* InWidget);
 
 	UFUNCTION(BlueprintCallable, Category = Group)
-	void RemoveAll();
+	UE_API void RemoveAll();
 
 	template <typename WidgetT>
 	void AddWidgets(const TArray<WidgetT>& Widgets)
@@ -40,7 +42,9 @@ public:
 	}
 
 protected:
-	virtual void OnWidgetAdded(UWidget* NewWidget) PURE_VIRTUAL(UCommonWidgetGroupBase::OnWidgetAdded, );
-	virtual void OnWidgetRemoved(UWidget* OldWidget) PURE_VIRTUAL(UCommonWidgetGroupBase::OnWidgetRemoved, );
-	virtual void OnRemoveAll() PURE_VIRTUAL(UCommonWidgetGroupBase::OnRemoveAll, );
+	UE_API virtual void OnWidgetAdded(UWidget* NewWidget) PURE_VIRTUAL(UCommonWidgetGroupBase::OnWidgetAdded, );
+	UE_API virtual void OnWidgetRemoved(UWidget* OldWidget) PURE_VIRTUAL(UCommonWidgetGroupBase::OnWidgetRemoved, );
+	UE_API virtual void OnRemoveAll() PURE_VIRTUAL(UCommonWidgetGroupBase::OnRemoveAll, );
 };
+
+#undef UE_API

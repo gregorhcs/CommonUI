@@ -7,6 +7,8 @@
 
 #include "CommonButtonGroupBase.generated.h"
 
+#define UE_API COMMONUI_API
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSimpleButtonBaseGroupDelegate, UCommonButtonBase*, AssociatedButton, int32, ButtonIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE( FOnSelectionCleared );
 
@@ -14,12 +16,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE( FOnSelectionCleared );
  * Manages an arbitrary collection of CommonButton widgets.
  * Ensures that no more (and optionally, no less) than one button in the group is selected at a time
  */
-UCLASS( BlueprintType )
-class COMMONUI_API UCommonButtonGroupBase : public UCommonWidgetGroupBase
+UCLASS(MinimalAPI,  BlueprintType )
+class UCommonButtonGroupBase : public UCommonWidgetGroupBase
 {
 	GENERATED_BODY()
 public:
-	UCommonButtonGroupBase();
+	UE_API UCommonButtonGroupBase();
 
 	virtual TSubclassOf<UWidget> GetWidgetType() const override { return UCommonButtonBase::StaticClass(); }
 
@@ -29,27 +31,27 @@ public:
 	 * If true and nothing is selected, will select the first entry. If empty, will select the first button added.
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void SetSelectionRequired(bool bRequireSelection);
+	UE_API void SetSelectionRequired(bool bRequireSelection);
 
-	bool GetSelectionRequired() const;
+	UE_API bool GetSelectionRequired() const;
 
 	/** Deselects all buttons in the group. */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void DeselectAll();
+	UE_API void DeselectAll();
 
 	/** 
 	 * Selects the next button in the group 
 	 * @param bAllowWrap Whether to wrap to the first button if the last one is currently selected
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void SelectNextButton(bool bAllowWrap = true);
+	UE_API void SelectNextButton(bool bAllowWrap = true);
 
 	/** 
 	 * Selects the previous button in the group 
 	 * @param bAllowWrap Whether to wrap to the first button if the last one is currently selected
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void SelectPreviousButton(bool bAllowWrap = true);
+	UE_API void SelectPreviousButton(bool bAllowWrap = true);
 
 	/**
 	 * Selects a button at a specific index in the group. Clears all selection if given an invalid index.
@@ -57,21 +59,21 @@ public:
 	 * @param bAllowSound Whether the selected button should play its click sound
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void SelectButtonAtIndex(int32 ButtonIndex, const bool bAllowSound = true);
+	UE_API void SelectButtonAtIndex(int32 ButtonIndex, const bool bAllowSound = true);
 
 	/**
 	 * Get the index of the currently selected button, if any.
 	 * @param The index of the currently selected button in the group, or -1 if there is no selected button.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = BaseButtonGroup)
-	int32 GetSelectedButtonIndex() const;
+	UE_API int32 GetSelectedButtonIndex() const;
 
 	/**
 	 * Get the index of the currently hovered button, if any.
 	 * @param The index of the currently hovered button in the group, or -1 if there is no hovered button.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = BaseButtonGroup)
-	int32 GetHoveredButtonIndex() const;
+	UE_API int32 GetHoveredButtonIndex() const;
 
 	/**
 	 * Find the button index of the specified button, if possible
@@ -79,9 +81,9 @@ public:
 	 * @return Index of the button in the group. INDEX_NONE if not found
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	int32 FindButtonIndex(const UCommonButtonBase* ButtonToFind) const;
+	UE_API int32 FindButtonIndex(const UCommonButtonBase* ButtonToFind) const;
 
-	void ForEach(TFunctionRef<void(UCommonButtonBase&, int32)> Functor);
+	UE_API void ForEach(TFunctionRef<void(UCommonButtonBase&, int32)> Functor);
 
 	DECLARE_EVENT_TwoParams(UCommonButtonGroupBase, FNativeSimpleButtonBaseGroupDelegate, UCommonButtonBase*, int32);
 
@@ -116,46 +118,46 @@ public:
 	FNativeSimpleButtonBaseGroupDelegate NativeOnButtonBaseLockDoubleClicked;
 
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	UCommonButtonBase* GetButtonBaseAtIndex(int32 Index) const;
+	UE_API UCommonButtonBase* GetButtonBaseAtIndex(int32 Index) const;
 	
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	UCommonButtonBase* GetSelectedButtonBase() const;
+	UE_API UCommonButtonBase* GetSelectedButtonBase() const;
 
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	bool HasAnyButtons() const;
+	UE_API bool HasAnyButtons() const;
 
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	int32 GetButtonCount() const;
+	UE_API int32 GetButtonCount() const;
 
 protected:
 	/** If true, the group will force that a button be selected at all times */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BaseButtonGroup, meta = (ExposeOnSpawn="true"))
 	bool bSelectionRequired;
 
-	virtual void OnWidgetAdded( UWidget* NewWidget ) override;
-	virtual void OnWidgetRemoved( UWidget* OldWidget ) override;
-	virtual void OnRemoveAll() override;
+	UE_API virtual void OnWidgetAdded( UWidget* NewWidget ) override;
+	UE_API virtual void OnWidgetRemoved( UWidget* OldWidget ) override;
+	UE_API virtual void OnRemoveAll() override;
 
 	UFUNCTION()
-	virtual void OnSelectionStateChangedBase( UCommonButtonBase* BaseButton, bool bIsSelected );
+	UE_API virtual void OnSelectionStateChangedBase( UCommonButtonBase* BaseButton, bool bIsSelected );
 
 	UFUNCTION()
-	virtual void OnHandleButtonBaseClicked(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnHandleButtonBaseClicked(UCommonButtonBase* BaseButton);
 
 	UFUNCTION()
-	virtual void OnHandleButtonBaseDoubleClicked(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnHandleButtonBaseDoubleClicked(UCommonButtonBase* BaseButton);
 
 	UFUNCTION()
-	virtual void OnButtonBaseHovered(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnButtonBaseHovered(UCommonButtonBase* BaseButton);
 
 	UFUNCTION()
-	virtual void OnButtonBaseUnhovered(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnButtonBaseUnhovered(UCommonButtonBase* BaseButton);
 		
 	UFUNCTION()
-	virtual void OnHandleButtonBaseLockClicked(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnHandleButtonBaseLockClicked(UCommonButtonBase* BaseButton);
 
 	UFUNCTION()
-	virtual void OnHandleButtonBaseLockDoubleClicked(UCommonButtonBase* BaseButton);
+	UE_API virtual void OnHandleButtonBaseLockDoubleClicked(UCommonButtonBase* BaseButton);
 
 protected:
 
@@ -163,3 +165,5 @@ protected:
 	int32 SelectedButtonIndex = INDEX_NONE;
 	int32 HoveredButtonIndex = INDEX_NONE;
 };
+
+#undef UE_API

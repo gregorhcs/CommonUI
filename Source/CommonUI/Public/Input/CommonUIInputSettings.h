@@ -7,6 +7,8 @@
 #include "UITag.h"
 #include "CommonUIInputSettings.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UPlayerInput;
 
 USTRUCT()
@@ -36,7 +38,7 @@ public:
 };
 
 USTRUCT()
-struct COMMONUI_API FUIInputAction
+struct FUIInputAction
 {
 	GENERATED_BODY()
 		
@@ -56,7 +58,7 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = "UI Input Action", meta = (TitleProperty = "Key"))
 	TArray<FUIActionKeyMapping> KeyMappings;
 
-	bool HasAnyHoldMappings() const;
+	UE_API bool HasAnyHoldMappings() const;
 };
 
 USTRUCT()
@@ -116,8 +118,9 @@ public:
 
 	int32 GetUIActionProcessingPriority() const { return UIActionProcessingPriority; }
 	COMMONUI_API const FUIInputAction* FindAction(FUIActionTag ActionTag) const;
-	COMMONUI_API const TArray<FUIInputAction>& GetUIInputActions() const { return InputActions; }
+	const TArray<FUIInputAction>& GetUIInputActions() const { return InputActions; }
 	const FCommonAnalogCursorSettings& GetAnalogCursorSettings() const { return AnalogCursorSettings; }
+	bool ShouldLinkCursorToGamepadFocus() const { return bLinkCursorToGamepadFocus; }
 //
 private:
 	/** True to have the mouse pointer automatically moved to the center of whatever widget is currently focused while using a gamepad. */
@@ -149,7 +152,4 @@ private:
 	FCommonAnalogCursorSettings AnalogCursorSettings;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Input/CommonUIInputTypes.h"
-#include "UObject/Object.h"
-#endif
+#undef UE_API

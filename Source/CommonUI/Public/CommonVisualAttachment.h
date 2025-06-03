@@ -6,16 +6,18 @@
 
 #include "CommonVisualAttachment.generated.h"
 
+#define UE_API COMMONUI_API
+
 /**
  * Adds a widget as a zero-size attachment to another. Think icons to the left of labels, without changing the computed size of the label.
  */
-UCLASS(ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonVisualAttachment : public USizeBox
+UCLASS(MinimalAPI, ClassGroup = UI, meta = (Category = "Common UI"))
+class UCommonVisualAttachment : public USizeBox
 {
 	GENERATED_BODY()
 
 public:
-	UCommonVisualAttachment(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonVisualAttachment(const FObjectInitializer& ObjectInitializer);
 
 	UE_DEPRECATED(5.4, "Direct access to ContentAnchor is deprecated. Please use the getter or setter.")
 	/** Content Anchor Point as a ratio of the content size. Use (1.0, 1.0) to anchor the content on the bottom right, (0.0) to anchor top left, (0.5, 0.5) to anchor centered.*/
@@ -23,24 +25,20 @@ public:
 	FVector2D ContentAnchor;
 
 	/** Get Content Anchor Point*/
-	FVector2D GetContentAnchor() const;
+	UE_API FVector2D GetContentAnchor() const;
 
 	/** Set Content Anchor Point*/
-	void SetContentAnchor(FVector2D InContentAnchor);
+	UE_API void SetContentAnchor(FVector2D InContentAnchor);
 
 protected:
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 private:
 	TSharedPtr<class SVisualAttachmentBox> MyAttachmentBox;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
-#endif
+#undef UE_API

@@ -15,8 +15,3 @@ class UCommonGenericInputActionDataTableFactory : public UFactory
 // End of UFactory interface
 
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#endif

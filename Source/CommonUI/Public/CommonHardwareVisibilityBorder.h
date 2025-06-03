@@ -6,6 +6,8 @@
 #include "GameplayTagContainer.h"
 #include "CommonHardwareVisibilityBorder.generated.h"
 
+#define UE_API COMMONUI_API
+
 enum class ESlateVisibility : uint8;
 
 class UCommonUIVisibilitySubsystem;
@@ -13,8 +15,8 @@ class UCommonUIVisibilitySubsystem;
 /**
  * A container that controls visibility based on Platform, Input 
  */
-UCLASS()
-class COMMONUI_API UCommonHardwareVisibilityBorder : public UCommonBorder
+UCLASS(MinimalAPI)
+class UCommonHardwareVisibilityBorder : public UCommonBorder
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,17 +36,14 @@ protected:
 
 protected:
 	// Begin UWidget
-	virtual void OnWidgetRebuilt() override;
+	UE_API virtual void OnWidgetRebuilt() override;
 	// End UWidget
 
-	void UpdateVisibility(UCommonUIVisibilitySubsystem* VisSystem = nullptr);
+	UE_API void UpdateVisibility(UCommonUIVisibilitySubsystem* VisSystem = nullptr);
 
-	void ListenToInputMethodChanged();
+	UE_API void ListenToInputMethodChanged();
 
-	void HandleInputMethodChanged(UCommonUIVisibilitySubsystem*);
+	UE_API void HandleInputMethodChanged(UCommonUIVisibilitySubsystem*);
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "CoreMinimal.h"
-#endif
+#undef UE_API

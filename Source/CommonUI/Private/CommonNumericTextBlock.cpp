@@ -273,6 +273,7 @@ FNumberFormattingOptions UCommonNumericTextBlock::MakeNumberFormattingOptions() 
 {
 	FNumberFormattingOptions NumberFormattingOptions;
 	NumberFormattingOptions.RoundingMode = FormattingSpecification.RoundingMode;
+	NumberFormattingOptions.AlwaysSign = FormattingSpecification.AlwaysSign;
 	NumberFormattingOptions.UseGrouping = FormattingSpecification.UseGrouping;
 	NumberFormattingOptions.MinimumIntegralDigits = FormattingSpecification.MinimumIntegralDigits;
 	NumberFormattingOptions.MaximumIntegralDigits = FormattingSpecification.MaximumIntegralDigits;

@@ -10,6 +10,8 @@
 #include "UObject/ObjectMacros.h"
 #include "CommonUITypes.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UUserWidget;
 enum class ECommonInputType : uint8;
 struct FScrollBoxStyle;
@@ -35,11 +37,11 @@ enum class EInputActionState : uint8
 };
 
 USTRUCT(BlueprintType)
-struct COMMONUI_API FCommonInputTypeInfo
+struct FCommonInputTypeInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-	FCommonInputTypeInfo();
+	UE_API FCommonInputTypeInfo();
 private:
 	/** Key this action is bound to	*/
 	UPROPERTY(EditAnywhere, Category = "CommonInput")
@@ -47,7 +49,7 @@ private:
 public:
 
 	/** Get the input type key bound to this input type, with a potential override */
-	FKey GetKey() const;
+	UE_API FKey GetKey() const;
 
 	/** Get the input type key bound to this input type, with a potential override */
 	void SetKey(FKey InKey)
@@ -95,11 +97,11 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct COMMONUI_API FCommonInputActionDataBase : public FTableRowBase
+struct FCommonInputActionDataBase : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	FCommonInputActionDataBase();
+	UE_API FCommonInputActionDataBase();
 	
 	/** User facing name (used when NOT a hold action) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CommonInput")
@@ -141,27 +143,27 @@ protected:
 	friend class UCommonInputActionDataProcessor;
 
 public:
-	bool CanDisplayInReflector(ECommonInputType InputType, const FName& GamepadName) const;
+	UE_API bool CanDisplayInReflector(ECommonInputType InputType, const FName& GamepadName) const;
 
-	virtual const FCommonInputTypeInfo& GetCurrentInputTypeInfo(const UCommonInputSubsystem* CommonInputSubsystem) const;
+	UE_API virtual const FCommonInputTypeInfo& GetCurrentInputTypeInfo(const UCommonInputSubsystem* CommonInputSubsystem) const;
 
-	virtual const FCommonInputTypeInfo& GetInputTypeInfo(ECommonInputType InputType, const FName& GamepadName) const;
+	UE_API virtual const FCommonInputTypeInfo& GetInputTypeInfo(ECommonInputType InputType, const FName& GamepadName) const;
 
-	virtual bool IsKeyBoundToInputActionData(const FKey& Key) const;
+	UE_API virtual bool IsKeyBoundToInputActionData(const FKey& Key) const;
 
-	bool IsKeyBoundToInputActionData(const FKey& Key, const UCommonInputSubsystem* CommonInputSubsystem) const;
+	UE_API bool IsKeyBoundToInputActionData(const FKey& Key, const UCommonInputSubsystem* CommonInputSubsystem) const;
 
-	FSlateBrush GetCurrentInputActionIcon(const UCommonInputSubsystem* CommonInputSubsystem) const;
+	UE_API FSlateBrush GetCurrentInputActionIcon(const UCommonInputSubsystem* CommonInputSubsystem) const;
 
-	virtual void OnPostDataImport(const UDataTable* InDataTable, const FName InRowName, TArray<FString>& OutCollectedImportProblems) override;
+	UE_API virtual void OnPostDataImport(const UDataTable* InDataTable, const FName InRowName, TArray<FString>& OutCollectedImportProblems) override;
 
-	virtual bool HasHoldBindings() const;
+	UE_API virtual bool HasHoldBindings() const;
 
-	const FCommonInputTypeInfo& GetDefaultGamepadInputTypeInfo() const;
+	UE_API const FCommonInputTypeInfo& GetDefaultGamepadInputTypeInfo() const;
 
-	bool HasGamepadInputOverride(const FName& GamepadName) const;
+	UE_API bool HasGamepadInputOverride(const FName& GamepadName) const;
 
-	void AddGamepadInputOverride(const FName& GamepadName, const FCommonInputTypeInfo& InputInfo);
+	UE_API void AddGamepadInputOverride(const FName& GamepadName, const FCommonInputTypeInfo& InputInfo);
 
 	bool operator==(const FCommonInputActionDataBase& Other) const
 	{
@@ -178,6 +180,19 @@ public:
 		check(this);
 		return !(*this == Other);
 	}
+
+	UE_API bool Serialize(FArchive& Ar);
+	UE_API void PostSerialize(const FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FCommonInputActionDataBase> : public TStructOpsTypeTraitsBase2<FCommonInputActionDataBase>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true,
+	};
 };
 
 /** 
@@ -192,8 +207,8 @@ public:
  * to a seperate metadata type prevents any chance of future overriding. Instead, we prefer
  * info for all metadata to be set across all instances.
  */
-UCLASS(Blueprintable, EditInlineNew, CollapseCategories)
-class COMMONUI_API UCommonInputMetadata : public UObject
+UCLASS(MinimalAPI, Blueprintable, EditInlineNew, CollapseCategories)
+class UCommonInputMetadata : public UObject
 {
 	GENERATED_BODY()
 
@@ -227,13 +242,13 @@ public:
  * If you don't have any metadata needs or your UI IMC's are for CommonUI only, 
  * then you should use the provided 'UCommonMappingContextMetadata' below.
  */
-UINTERFACE()
-class COMMONUI_API UCommonMappingContextMetadataInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UCommonMappingContextMetadataInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class COMMONUI_API ICommonMappingContextMetadataInterface
+class ICommonMappingContextMetadataInterface
 {
 	GENERATED_BODY()
 
@@ -254,8 +269,8 @@ public:
  * Utilizes a map of input actions to metadata to prevent users from having to create
  * multiple metadata assets / instances. Using this map is not mandatory.
  */
-UCLASS(BlueprintType)
-class COMMONUI_API UCommonMappingContextMetadata : public UDataAsset, public ICommonMappingContextMetadataInterface
+UCLASS(MinimalAPI, BlueprintType)
+class UCommonMappingContextMetadata : public UDataAsset, public ICommonMappingContextMetadataInterface
 {
 	GENERATED_BODY()
 
@@ -269,34 +284,31 @@ public:
 	TMap<TObjectPtr<UInputAction>, TObjectPtr<const UCommonInputMetadata>> PerActionEnhancedInputMetadata;
 
 public:
-	virtual const UCommonInputMetadata* GetCommonInputMetadata(const UInputAction* InInputAction) const override;
+	UE_API virtual const UCommonInputMetadata* GetCommonInputMetadata(const UInputAction* InInputAction) const override;
 };
 
-class COMMONUI_API CommonUI
+class CommonUI
 {
 public:
-	static void SetupStyles();
-	static FScrollBoxStyle EmptyScrollBoxStyle;
+	static UE_API void SetupStyles();
+	static UE_API FScrollBoxStyle EmptyScrollBoxStyle;
 
-	static const FCommonInputActionDataBase* GetInputActionData(const FDataTableRowHandle& InputActionRowHandle);
-	static FSlateBrush GetIconForInputActions(const UCommonInputSubsystem* CommonInputSubsystem, const TArray<FDataTableRowHandle>& InputActions);
+	static UE_API const FCommonInputActionDataBase* GetInputActionData(const FDataTableRowHandle& InputActionRowHandle);
+	static UE_API FSlateBrush GetIconForInputActions(const UCommonInputSubsystem* CommonInputSubsystem, const TArray<FDataTableRowHandle>& InputActions);
 
-	static bool IsEnhancedInputSupportEnabled();
+	static UE_API bool IsEnhancedInputSupportEnabled();
 
-	static TObjectPtr<const UCommonInputMetadata> GetEnhancedInputActionMetadata(const UInputAction* InputAction);
-	static void GetEnhancedInputActionKeys(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, TArray<FKey>& OutKeys);
-	static void InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, FInputActionValue RawValue);
-	static FSlateBrush GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction);
-	static bool ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
-	static FKey GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
+	static UE_API TObjectPtr<const UCommonInputMetadata> GetEnhancedInputActionMetadata(const UInputAction* InputAction);
+	static UE_API void GetEnhancedInputActionKeys(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, TArray<FKey>& OutKeys);
+	static UE_API void InjectEnhancedInputForAction(const ULocalPlayer* LocalPlayer, const UInputAction* InputAction, FInputActionValue RawValue);
+	static UE_API FSlateBrush GetIconForEnhancedInputAction(const UCommonInputSubsystem* CommonInputSubsystem, const UInputAction* InputAction);
+	static UE_API bool ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
+	static UE_API bool ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const FCommonInputActionDataBase* InputAction);
+	static UE_API bool IsKeyValidForInputType(const FKey& Key, ECommonInputType InputType);
+	static UE_API FKey GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction);
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemClicked, UUserWidget*, Widget);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnItemSelected, UUserWidget*, Widget, bool, Selected);
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Blueprint/UserWidget.h"
-#include "CommonInputBaseTypes.h"
-#include "Misc/EnumRange.h"
-#include "Styling/SlateTypes.h"
-#endif
+#undef UE_API

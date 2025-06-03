@@ -282,10 +282,3 @@ private:
 };
 
 using FUserWidgetFactory = TWidgetFactory<UUserWidget>;
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Blueprint/UserWidget.h"
-#include "Slate/SObjectTableRow.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STableViewBase.h"
-#endif

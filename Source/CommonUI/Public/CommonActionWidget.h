@@ -8,6 +8,8 @@
 #include "Engine/DataTable.h"
 #include "CommonActionWidget.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonInputSubsystem;
 enum class ECommonInputType : uint8;
 struct FCommonInputActionDataBase;
@@ -19,49 +21,52 @@ class UMaterialInstanceDynamic;
 /**
  * A widget that shows a platform-specific icon for the given input action.
  */
-UCLASS(BlueprintType, Blueprintable)
-class COMMONUI_API UCommonActionWidget: public UWidget
+UCLASS(MinimalAPI, BlueprintType, Blueprintable)
+class UCommonActionWidget: public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	//UObject interface
-	virtual void Serialize(FArchive& Ar) override;
+	UE_API virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 	
 	/** Begin UWidget */
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SynchronizeProperties() override;
 	/** End UWidget */
 	
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	virtual FSlateBrush GetIcon() const;
+	UE_API virtual FSlateBrush GetIcon() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	FText GetDisplayText() const;
+	UE_API FText GetDisplayText() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	UMaterialInstanceDynamic* GetIconDynamicMaterial();
+	UE_API UMaterialInstanceDynamic* GetIconDynamicMaterial();
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	void SetEnhancedInputAction(UInputAction* InInputAction);
+	UE_API virtual void SetEnhancedInputAction(UInputAction* InInputAction);
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	void SetInputAction(FDataTableRowHandle InputActionRow);
+	UE_API const UInputAction* GetEnhancedInputAction() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	void SetInputActionBinding(FUIActionBindingHandle BindingHandle);
+	UE_API virtual void SetInputAction(FDataTableRowHandle InputActionRow);
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	void SetInputActions(TArray<FDataTableRowHandle> NewInputActions);
+	UE_API virtual void SetInputActionBinding(FUIActionBindingHandle BindingHandle);
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	void SetIconRimBrush(FSlateBrush InIconRimBrush);
+	UE_API virtual void SetInputActions(TArray<FDataTableRowHandle> NewInputActions);
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	virtual bool IsHeldAction() const;
+	UE_API void SetIconRimBrush(FSlateBrush InIconRimBrush);
+
+	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
+	UE_API virtual bool IsHeldAction() const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputMethodChanged, bool, bUsingGamepad);
 	UPROPERTY(BlueprintAssignable, Category = CommonActionWidget)
@@ -86,13 +91,13 @@ public:
 	FSlateBrush IconRimBrush;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
-	virtual void OnActionProgress(float HeldPercent);
-	virtual void OnActionComplete();
-	void SetProgressMaterial(const FSlateBrush& InProgressMaterialBrush, const FName& InProgressMaterialParam);
-	void SetHidden(bool bAlwaysHidden);
+	UE_API virtual void OnActionProgress(float HeldPercent);
+	UE_API virtual void OnActionComplete();
+	UE_API void SetProgressMaterial(const FSlateBrush& InProgressMaterialBrush, const FName& InProgressMaterialParam);
+	UE_API void SetHidden(bool bAlwaysHidden);
 
 protected:
 	/**
@@ -106,7 +111,7 @@ protected:
 	/**
 	 * Input Action this common action widget is intended to represent. Optional if using EnhancedInputs
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = CommonActionWidget, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<class UInputAction> EnhancedInputAction;
 
 	FUIActionBindingHandle DisplayedBindingHandle;
@@ -120,19 +125,22 @@ protected:
 #endif
 
 protected:
-	UCommonInputSubsystem* GetInputSubsystem() const;
-	const FCommonInputActionDataBase* GetInputActionData() const;
+	UE_API UCommonInputSubsystem* GetInputSubsystem() const;
+	UE_API const FCommonInputActionDataBase* GetInputActionData() const;
 
-	virtual void UpdateActionWidget();
+	UE_API virtual void UpdateActionWidget();
 
-	virtual bool ShouldUpdateActionWidgetIcon() const;
+	UE_API virtual bool ShouldUpdateActionWidgetIcon() const;
 
-	virtual void OnWidgetRebuilt() override;
+	UE_API virtual void OnWidgetRebuilt() override;
 	
-	void UpdateBindingHandleInternal(FUIActionBindingHandle BindingHandle);
+	UE_API void UpdateBindingHandleInternal(FUIActionBindingHandle BindingHandle);
 
-	void ListenToInputMethodChanged(bool bListen = true);
-	void HandleInputMethodChanged(ECommonInputType InInputType);
+	UE_API void ListenToInputMethodChanged(bool bListen = true);
+	UE_API void HandleInputMethodChanged(ECommonInputType InInputType);
+
+	UFUNCTION()
+	UE_API void OnEnhancedInputMappingsRebuilt();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> ProgressDynamicMaterial;
@@ -151,6 +159,4 @@ protected:
 	bool bAlwaysHideOverride = false;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#endif
+#undef UE_API

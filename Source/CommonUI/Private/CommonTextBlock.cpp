@@ -130,7 +130,7 @@ void UCommonTextBlock::PostLoad()
 		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
 		Settings.ConditionalPostLoad();
 		TSubclassOf<UCommonTextStyle> DefaultStyle = Settings.GetTemplateTextStyle();
-		UCommonTextStyle* DefaultStyleCDO = DefaultStyle ? Cast<UCommonTextStyle>(DefaultStyle->ClassDefaultObject) : nullptr;
+		UCommonTextStyle* DefaultStyleCDO = DefaultStyle ? Cast<UCommonTextStyle>(DefaultStyle->GetDefaultObject(false)) : nullptr;
 		if (DefaultStyleCDO)
 		{
 			DefaultStyleCDO->ConditionalPostLoad();
@@ -374,6 +374,12 @@ void UCommonTextBlock::SetStyle(TSubclassOf<UCommonTextStyle> InStyle)
 	SynchronizeProperties();
 }
 
+void UCommonTextBlock::SetScrollOrientation(TEnumAsByte<EOrientation> InScrollOrientation)
+{
+	ScrollOrientation = InScrollOrientation;
+	SynchronizeProperties();
+}
+
 const FMargin& UCommonTextBlock::GetMargin()
 {
 	return Margin;
@@ -597,6 +603,7 @@ TSharedRef<SWidget> UCommonTextBlock::RebuildWidget()
 	TextScroller = 
 		SNew(STextScroller)
 		.ScrollOptions(TextScrollStyle->ToScrollOptions())
+		.ScrollOrientation(ScrollOrientation)
 		[ 
 			Super::RebuildWidget() 
 		];
@@ -614,12 +621,12 @@ TSharedRef<SWidget> UCommonTextBlock::RebuildWidget()
 
 const UCommonTextStyle* UCommonTextBlock::GetStyleCDO() const
 {
-	return Style ? Cast<UCommonTextStyle>(Style->ClassDefaultObject) : nullptr;
+	return Style ? Cast<UCommonTextStyle>(Style->GetDefaultObject(false)) : nullptr;
 }
 
 const UCommonTextScrollStyle* UCommonTextBlock::GetScrollStyleCDO() const
 {
-	return ScrollStyle ? Cast<UCommonTextScrollStyle>(ScrollStyle->ClassDefaultObject) : nullptr;
+	return ScrollStyle ? Cast<UCommonTextScrollStyle>(ScrollStyle->GetDefaultObject(false)) : nullptr;
 }
 
 void UCommonTextBlock::ApplyFontSizeMultiplier() const

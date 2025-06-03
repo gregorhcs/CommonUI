@@ -6,12 +6,15 @@
 #include "CommonInputTypeEnum.h"
 #include "CommonUITypes.h"
 #include "Editor/WidgetCompilerLog.h"
+#include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
+#include "Framework/Application/SlateUser.h"
 #include "InputAction.h"
 #include "Input/CommonBoundActionButtonInterface.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/UIActionBinding.h"
+#include "Layout/WidgetPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionBar)
 
@@ -37,37 +40,6 @@ void UCommonBoundActionBar::SetDisplayOwningPlayerActionsOnly(bool bShouldOnlyDi
 	}
 }
 
-void UCommonBoundActionBar::Tick(float DeltaTime)
-{
-	if (bIsRefreshQueued)
-	{
-		HandleDeferredDisplayUpdate();
-	}
-}
-
-ETickableTickType UCommonBoundActionBar::GetTickableTickType() const
-{
-	return (IsTemplate() ? ETickableTickType::Never : ETickableTickType::Always);
-}
-
-TStatId UCommonBoundActionBar::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UCommonBoundActionBar, STATGROUP_Tickables);
-}
-
-bool UCommonBoundActionBar::IsTickableWhenPaused() const
-{
-	return true;
-}
-
-void UCommonBoundActionBar::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	// Make sure the tick is completely disabled
-	SetTickableTickType(ETickableTickType::Never);
-}
-
 void UCommonBoundActionBar::OnWidgetRebuilt()
 {
 	Super::OnWidgetRebuilt();
@@ -76,7 +48,11 @@ void UCommonBoundActionBar::OnWidgetRebuilt()
 	{
 		if (GameInstance->GetGameViewportClient())
 		{
+			GameInstance->GetGameViewportClient()->OnPlayerAdded().RemoveAll(this);
+			GameInstance->GetGameViewportClient()->OnPlayerRemoved().RemoveAll(this);
+
 			GameInstance->GetGameViewportClient()->OnPlayerAdded().AddUObject(this, &UCommonBoundActionBar::HandlePlayerAdded);
+			GameInstance->GetGameViewportClient()->OnPlayerRemoved().AddUObject(this, &UCommonBoundActionBar::HandlePlayerRemoved);
 		}
 
 		for (const ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
@@ -136,8 +112,36 @@ void UCommonBoundActionBar::HandleBoundActionsUpdated(bool bFromOwningPlayer)
 {
 	if (bFromOwningPlayer || !bDisplayOwningPlayerActionsOnly)
 	{
-		bIsRefreshQueued = true;
+		UpdateDisplay();
 	}
+}
+
+void UCommonBoundActionBar::HandleInputMappingsRebuiltUpdated()
+{
+	UpdateDisplay();
+}
+
+void UCommonBoundActionBar::UpdateDisplay()
+{
+	if (!bIsRefreshQueued)
+	{
+		bIsRefreshQueued = true;
+
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float InDelta)
+			{
+				if (IsSafeToUpdateDisplay())
+				{
+					HandleDeferredDisplayUpdate();
+					return false;
+				}
+				return true;
+			}));
+	}
+}
+
+bool UCommonBoundActionBar::IsSafeToUpdateDisplay() const
+{
+	return !DoAnyActionButtonsHaveMouseCapture();
 }
 
 void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
@@ -182,34 +186,15 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 									return false;
 								}
 
-								if (CommonUI::IsEnhancedInputSupportEnabled())
+								const bool bIsValidEnhancedInputAction = Binding->InputTypesExemptFromValidKeyCheck.Contains(PlayerInputType) ||
+									(CommonUI::IsEnhancedInputSupportEnabled() && CommonUI::ActionValidForInputType(ActionRouter->GetLocalPlayer(), PlayerInputType, Binding->InputAction.Get()));
+								if (!bIsValidEnhancedInputAction)
 								{
-									if (TObjectPtr<const UInputAction> InputAction = Binding->InputAction.Get())
-									{
-										if (CommonUI::ActionValidForInputType(ActionRouter->GetLocalPlayer(), PlayerInputType, InputAction))
-										{
-											if (!bIgnoreDuplicateActions)
-											{
-												return true;
-											}
-											bool bAlreadyAccepted = false;
-											AcceptedBindings.Add(Binding->ActionName, &bAlreadyAccepted);
-											return !bAlreadyAccepted;
-										}
-										return false;
-									}
-								}
-
-								if (FCommonInputActionDataBase* LegacyData = Binding->GetLegacyInputActionData())
-								{
-									if (!LegacyData->CanDisplayInReflector(PlayerInputType, PlayerGamepadName))
+									const bool bIsValidDataTableInputAction = CommonUI::ActionValidForInputType(ActionRouter->GetLocalPlayer(), PlayerInputType, Binding->GetLegacyInputActionData());
+									if (!bIsValidDataTableInputAction)
 									{
 										return false;
 									}
-								}
-								else
-								{
-									return false; 
 								}
 
 								if (!bIgnoreDuplicateActions)
@@ -302,7 +287,8 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 							bool bIsValidActionA = LegacyDataA || InputActionA;
 							bool bIsValidActionB = LegacyDataB || InputActionB;
 
-							if (ensureMsgf((bIsValidActionA && bIsValidActionB), TEXT("Action bindings not displayed yet -- array filter enforces they are not included")))
+							if (ensureMsgf(bIsValidActionA, TEXT("Binding is invalid: %s"), *BindingA->ToDebugString())
+								&& ensureMsgf(bIsValidActionB, TEXT("Binding is invalid: %s"), *BindingB->ToDebugString()))
 							{
 								bool bAIsBack = IsKeyBackAction(LegacyDataA, InputActionA);
 								bool bBIsBack = IsKeyBackAction(LegacyDataB, InputActionB);
@@ -358,9 +344,15 @@ void UCommonBoundActionBar::HandlePlayerAdded(int32 PlayerIdx)
 	HandleBoundActionsUpdated(NewPlayer == GetOwningLocalPlayer());
 }
 
+void UCommonBoundActionBar::HandlePlayerRemoved(int32 PlayerIdx)
+{
+	const ULocalPlayer* RemovedPlayer = GetGameInstance()->GetLocalPlayerByIndex(PlayerIdx);
+	HandleBoundActionsUpdated(RemovedPlayer == GetOwningLocalPlayer());
+}
+
 void UCommonBoundActionBar::HandledInputTypeUpdated(ECommonInputType InputType)
 {
-	bIsRefreshQueued = true;
+	UpdateDisplay();
 }
 
 void UCommonBoundActionBar::MonitorPlayerActions(const ULocalPlayer* NewPlayer)
@@ -381,6 +373,19 @@ void UCommonBoundActionBar::MonitorPlayerActions(const ULocalPlayer* NewPlayer)
 	{
 		InputSubsystem->OnInputMethodChangedNative.AddUObject(this, &UCommonBoundActionBar::HandledInputTypeUpdated);
 	}
+
+	if (CommonUI::IsEnhancedInputSupportEnabled())
+	{
+		// need to check the owning player here rather than the in the callback because the dynamic delegates can't have extra params. So just don't subscribe if not needed
+		const bool bFromOwningPlayer = NewPlayer == GetOwningLocalPlayer();
+		if (bFromOwningPlayer || !bDisplayOwningPlayerActionsOnly)
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* EnhancedInputLocalPlayerSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(NewPlayer))
+			{
+				EnhancedInputLocalPlayerSubsystem->ControlMappingsRebuiltDelegate.AddUniqueDynamic(this, &UCommonBoundActionBar::HandleInputMappingsRebuiltUpdated);
+			}
+		}
+	}
 }
 
 void UCommonBoundActionBar::ActionBarUpdateBegin()
@@ -391,6 +396,29 @@ void UCommonBoundActionBar::ActionBarUpdateBegin()
 void UCommonBoundActionBar::ActionBarUpdateEnd()
 {
 	ActionBarUpdateEndImpl();
+}
+
+bool UCommonBoundActionBar::DoAnyActionButtonsHaveMouseCapture() const
+{
+	if (const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+	{
+		if (TSharedPtr<const FSlateUser> SlateUser = LocalPlayer->GetSlateUser())
+		{
+			if (SlateUser->HasAnyCapture())
+			{
+				const FWeakWidgetPath CapturePath = SlateUser->GetWeakCursorCapturePath();
+				for (const UUserWidget* Element : GetAllEntries())
+				{
+					if (CapturePath.ContainsWidget(Element->GetCachedWidget().Get()))
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

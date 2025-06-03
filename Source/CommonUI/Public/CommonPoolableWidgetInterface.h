@@ -5,8 +5,10 @@
 #include "UObject/Interface.h"
 #include "CommonPoolableWidgetInterface.generated.h"
 
-UINTERFACE()
-class COMMONUI_API UCommonPoolableWidgetInterface : public UInterface
+#define UE_API COMMONUI_API
+
+UINTERFACE(MinimalAPI)
+class UCommonPoolableWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -14,19 +16,16 @@ class COMMONUI_API UCommonPoolableWidgetInterface : public UInterface
 /**
  * Widget pool, if implemented WidgetFactory will attempt to reuse implementing widget objects.
  */
-class COMMONUI_API ICommonPoolableWidgetInterface
+class ICommonPoolableWidgetInterface
 {
 	GENERATED_BODY()
 
 protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Common Poolable Widget")
-	void OnAcquireFromPool();
+	UE_API void OnAcquireFromPool();
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Common Poolable Widget")
-	void OnReleaseToPool();
+	UE_API void OnReleaseToPool();
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#include "UObject/ScriptMacros.h"
-#endif
+#undef UE_API

@@ -5,11 +5,13 @@
 #include "Components/Border.h"
 #include "CommonCustomNavigation.generated.h"
 
+#define UE_API COMMONUI_API
+
 /**
  * Exposes a bindable event that can be used to stomp default border navigation with custom behaviors.
  */
-UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Custom Navigation"))
-class COMMONUI_API UCommonCustomNavigation : public UBorder
+UCLASS(MinimalAPI, Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Custom Navigation"))
+class UCommonCustomNavigation : public UBorder
 {
 	GENERATED_UCLASS_BODY()
 
@@ -23,21 +25,19 @@ public:
 public:
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 protected:
 	
-	bool OnNavigation(EUINavigation NavigationType);
+	UE_API bool OnNavigation(EUINavigation NavigationType);
 
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#endif
+#undef UE_API

@@ -7,6 +7,8 @@
 
 #include "CommonAnimatedSwitcher.generated.h"
 
+#define UE_API COMMONUI_API
+
 class SOverlay;
 class SSpacer;
 
@@ -16,51 +18,51 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActiveIndexChangedDelegate, UWid
 /**
  * A widget switcher that activates / deactivates CommonActivatableWidgets, allowing for associated animations to trigger.
  */
-UCLASS()
-class COMMONUI_API UCommonAnimatedSwitcher : public UWidgetSwitcher
+UCLASS(MinimalAPI)
+class UCommonAnimatedSwitcher : public UWidgetSwitcher
 {
 	GENERATED_BODY()
 
 public:
-	UCommonAnimatedSwitcher(const FObjectInitializer& ObjectInitializer);
+	UE_API UCommonAnimatedSwitcher(const FObjectInitializer& ObjectInitializer);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
-	virtual void SetActiveWidgetIndex(int32 Index) override;
-	virtual void SetActiveWidget(UWidget* Widget) override;
+	UE_API virtual void SetActiveWidgetIndex(int32 Index) override;
+	UE_API virtual void SetActiveWidget(UWidget* Widget) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-    void ActivateNextWidget(bool bCanWrap);
+    UE_API void ActivateNextWidget(bool bCanWrap);
 
     UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-    void ActivatePreviousWidget(bool bCanWrap);
+    UE_API void ActivatePreviousWidget(bool bCanWrap);
 
     UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-    bool HasWidgets() const;
+    UE_API bool HasWidgets() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-	void SetDisableTransitionAnimation(bool bDisableAnimation);
+	UE_API void SetDisableTransitionAnimation(bool bDisableAnimation);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-	bool IsCurrentlySwitching() const;
+	UE_API bool IsCurrentlySwitching() const;
 
 	/** Is the switcher playing a transition animation? */
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
-	bool IsTransitionPlaying() const;
+	UE_API bool IsTransitionPlaying() const;
 
-	UWidget* GetPendingActiveWidget() const;
-	int32 GetPendingActiveWidgetIndex() const;
+	UE_API UWidget* GetPendingActiveWidget() const;
+	UE_API int32 GetPendingActiveWidgetIndex() const;
 
 protected:
-	virtual void HandleSlateActiveIndexChanged(int32 ActiveIndex);
+	UE_API virtual void HandleSlateActiveIndexChanged(int32 ActiveIndex);
 
-	virtual void HandleSlateIsTransitioningChanged(bool bIsTransitioning);
+	UE_API virtual void HandleSlateIsTransitioningChanged(bool bIsTransitioning);
 
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	virtual void HandleOutgoingWidget() {};
 
@@ -105,9 +107,7 @@ protected:
 	bool bCurrentlySwitching = false;
 
 private:
-	void SetActiveWidgetIndex_Internal(int32 Index);
+	UE_API void SetActiveWidgetIndex_Internal(int32 Index);
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Components/Widget.h"
-#endif
+#undef UE_API

@@ -5,13 +5,9 @@
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "CommonInputBaseTypes.h"
 #include "Containers/Ticker.h"
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/SlateTypes.h"
-#endif
-
 #include "CommonInputSubsystem.generated.h"
+
+#define UE_API COMMONINPUT_API
 
 class UWidget;
 class ULocalPlayer;
@@ -24,76 +20,76 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInputMethodChangedDelegate, ECommon
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FPlatformInputSupportOverrideDelegate, ULocalPlayer*, ECommonInputType, bool&);
 DECLARE_EVENT_OneParam(FCommonInputPreprocessor, FGamepadChangeDetectedEvent, FName);
 
-UCLASS(DisplayName = "CommonInput")
-class COMMONINPUT_API UCommonInputSubsystem : public ULocalPlayerSubsystem
+UCLASS(MinimalAPI, DisplayName = "CommonInput")
+class UCommonInputSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	static UCommonInputSubsystem* Get(const ULocalPlayer* LocalPlayer);
+	static UE_API UCommonInputSubsystem* Get(const ULocalPlayer* LocalPlayer);
 
-	UCommonInputSubsystem();
+	UE_API UCommonInputSubsystem();
 	
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UE_API virtual void Deinitialize() override;
 
 	DECLARE_EVENT_OneParam(UCommonInputSubsystem, FInputMethodChangedEvent, ECommonInputType);
 	FInputMethodChangedEvent OnInputMethodChangedNative;
 
-	FGamepadChangeDetectedEvent& GetOnGamepadChangeDetected();
+	UE_API FGamepadChangeDetectedEvent& GetOnGamepadChangeDetected();
 
-	void SetInputTypeFilter(ECommonInputType InputType, FName Reason, bool Filter);
-	bool GetInputTypeFilter(ECommonInputType InputType) const;
+	UE_API void SetInputTypeFilter(ECommonInputType InputType, FName Reason, bool Filter);
+	UE_API bool GetInputTypeFilter(ECommonInputType InputType) const;
 
 	/**  */
-	void AddOrRemoveInputTypeLock(FName InReason, ECommonInputType InInputType, bool bAddLock);
+	UE_API void AddOrRemoveInputTypeLock(FName InReason, ECommonInputType InInputType, bool bAddLock);
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	bool IsInputMethodActive(ECommonInputType InputMethod) const;
+	UE_API bool IsInputMethodActive(ECommonInputType InputMethod) const;
 
 	/** The current input type based on the last input received on the device. */
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	ECommonInputType GetCurrentInputType() const;
+	UE_API ECommonInputType GetCurrentInputType() const;
 
 	/** The default input type for the current platform. */
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	ECommonInputType GetDefaultInputType() const;
+	UE_API ECommonInputType GetDefaultInputType() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	void SetCurrentInputType(ECommonInputType NewInputType);
+	UE_API void SetCurrentInputType(ECommonInputType NewInputType);
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	const FName GetCurrentGamepadName() const;
+	UE_API const FName GetCurrentGamepadName() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	void SetGamepadInputType(const FName InGamepadInputType);
+	UE_API void SetGamepadInputType(const FName InGamepadInputType);
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	bool IsUsingPointerInput() const;
+	UE_API bool IsUsingPointerInput() const;
 
 	/** Should display indicators for the current input device on screen.  This is needed when capturing videos, but we don't want to reveal the capture source device. */
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	bool ShouldShowInputKeys() const;
+	UE_API bool ShouldShowInputKeys() const;
 
 	void SetActionDomainTable(TObjectPtr<UCommonInputActionDomainTable> Table) { ActionDomainTable = Table; }
 
 	TObjectPtr<UCommonInputActionDomainTable> GetActionDomainTable() const { return ActionDomainTable; }
 
 	/** Returns true if the specified key can be present on both a mobile device and mobile gamepads */
-	static bool IsMobileGamepadKey(const FKey& InKey);
+	static UE_API bool IsMobileGamepadKey(const FKey& InKey);
 
 	/** Returns true if the current platform supports a hardware cursor */
-	bool PlatformSupportsHardwareCursor() const;
+	UE_API bool PlatformSupportsHardwareCursor() const;
 
-	void SetCursorPosition(FVector2D NewPosition, bool bForce);
+	UE_API void SetCursorPosition(FVector2D NewPosition, bool bForce);
 
-	void UpdateCursorPosition(TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
+	UE_API void UpdateCursorPosition(TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
 
 	/** Getter */
-	bool GetIsGamepadSimulatedClick() const;
+	UE_API bool GetIsGamepadSimulatedClick() const;
 
 	/** Setter */
-	void SetIsGamepadSimulatedClick(bool bNewIsGamepadSimulatedClick);
+	UE_API void SetIsGamepadSimulatedClick(bool bNewIsGamepadSimulatedClick);
 
 	/** 
 	* Gets the delegate that allows external systems to override which input methods are supported on this current platform.
@@ -106,27 +102,29 @@ public:
 	static FPlatformInputSupportOverrideDelegate& GetOnPlatformInputSupportOverride() { return OnPlatformInputSupportOverride; }
 
 protected:
-	virtual TSharedPtr<FCommonInputPreprocessor> MakeInputProcessor();
+	UE_API virtual TSharedPtr<FCommonInputPreprocessor> MakeInputProcessor();
 
-	ECommonInputType LockInput(ECommonInputType InputToLock) const;
+	UE_API ECommonInputType LockInput(ECommonInputType InputToLock) const;
 
 	UFUNCTION()
-	void BroadcastInputMethodChanged();
+	UE_API void BroadcastInputMethodChanged();
 
 protected:
 	TSharedPtr<FCommonInputPreprocessor> CommonInputPreprocessor;
 
 private:
-	bool Tick(float DeltaTime);
+	UE_API bool Tick(float DeltaTime);
 
-	void ShouldShowInputKeysChanged(IConsoleVariable* Var);
+	UE_API void ShouldShowInputKeysChanged(IConsoleVariable* Var);
 
-	FVector2D ClampPositionToViewport(const FVector2D& InPosition) const;
+	UE_API FVector2D ClampPositionToViewport(const FVector2D& InPosition) const;
 
 	/** Returns true if the current platform supports the input type */
-	bool PlatformSupportsInputType(ECommonInputType InInputType) const;
+	UE_API bool PlatformSupportsInputType(ECommonInputType InInputType) const;
 
-	bool CheckForInputMethodThrashing(ECommonInputType NewInputType);
+	UE_API bool CheckForInputMethodThrashing(ECommonInputType NewInputType);
+
+	UE_API void RecalculateCurrentInputType();
 
 	FTSTicker::FDelegateHandle TickHandle;
 
@@ -142,11 +140,11 @@ private:
 	UPROPERTY(Transient)
 	double LastTimeInputMethodThrashingBegan = 0;
 
-	/**  */
+	/** The most recent input type that the user used, before considering locks and thrashing, but does consider PlatformSupportsInputType() */
 	UPROPERTY(Transient)
-	ECommonInputType LastInputType;
+	ECommonInputType RawInputType;
 
-	/**  */
+	/** The current effective input type after considering input locks and thrashing */
 	UPROPERTY(Transient)
 	ECommonInputType CurrentInputType;
 
@@ -175,8 +173,7 @@ private:
 	*
 	* Note : Calling order is not guaranteed. Also, keep in mind that you might need to honor the previous callee's request to not support the input type being tested.
 	*/
-	static FPlatformInputSupportOverrideDelegate OnPlatformInputSupportOverride;
-
-	/** Used to broadcast when input method should be considered changed based on external systems, such as on enhanced input mapping context application*/
-	FScriptDelegate BroadcastInputMethodChangedEvent;
+	static UE_API FPlatformInputSupportOverrideDelegate OnPlatformInputSupportOverride;
 };
+
+#undef UE_API

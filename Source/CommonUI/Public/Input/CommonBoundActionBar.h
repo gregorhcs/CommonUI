@@ -5,8 +5,9 @@
 #include "CommonButtonBase.h"
 #include "Components/DynamicEntryBoxBase.h"
 #include "CommonInputTypeEnum.h"
-#include "Tickable.h"
 #include "CommonBoundActionBar.generated.h"
+
+#define UE_API COMMONUI_API
 
 class ICommonBoundActionButtonInterface;
 class IConsoleVariable;
@@ -19,51 +20,49 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FActionBarUpdated);
 /**
  * A box populated with current actions available per CommonUI's Input Handler.
  */
-UCLASS(Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonBoundActionBar : public UDynamicEntryBoxBase, public FTickableGameObject
+UCLASS(MinimalAPI, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
+class UCommonBoundActionBar : public UDynamicEntryBoxBase
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = CommonBoundActionBar)
-	void SetDisplayOwningPlayerActionsOnly(bool bShouldOnlyDisplayOwningPlayerActions);
-
-	//~ FTickableGameObject Begin
-	virtual void Tick(float DeltaTime) override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual TStatId GetStatId() const override;
-	virtual bool IsTickableWhenPaused() const override;
-	//~ FTickableGameObject End
+	UE_API void SetDisplayOwningPlayerActionsOnly(bool bShouldOnlyDisplayOwningPlayerActions);
 
 protected:
-	virtual void BeginDestroy() override;
-	virtual void OnWidgetRebuilt() override;
-	virtual void SynchronizeProperties() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void OnWidgetRebuilt() override;
+	UE_API virtual void SynchronizeProperties() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	virtual void NativeOnActionButtonCreated(ICommonBoundActionButtonInterface* ActionButton, const FUIActionBindingHandle& RepresentedAction) { }
 
 	virtual void ActionBarUpdateBeginImpl() {}
 	virtual void ActionBarUpdateEndImpl() {}
 	
-	virtual UUserWidget* CreateActionButton(const FUIActionBindingHandle& BindingHandle);
+	UE_API virtual UUserWidget* CreateActionButton(const FUIActionBindingHandle& BindingHandle);
 
 	TSubclassOf<UCommonButtonBase> GetActionButtonClass() { return ActionButtonClass; }
 
 #if WITH_EDITOR
-	void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
+	UE_API void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
 #endif
 
 private:
-	void HandledInputTypeUpdated(ECommonInputType InputType);
-	void HandleBoundActionsUpdated(bool bFromOwningPlayer);
-	void HandleDeferredDisplayUpdate();
-	void HandlePlayerAdded(int32 PlayerIdx);
+	UE_API void HandledInputTypeUpdated(ECommonInputType InputType);
+	UE_API void HandleBoundActionsUpdated(bool bFromOwningPlayer);
+	UFUNCTION()
+	UE_API void HandleInputMappingsRebuiltUpdated();
+	UE_API void UpdateDisplay();
+	UE_API bool IsSafeToUpdateDisplay() const;
+	UE_API void HandleDeferredDisplayUpdate();
+	UE_API void HandlePlayerAdded(int32 PlayerIdx);
+	UE_API void HandlePlayerRemoved(int32 PlayerIdx);
 	
-	void MonitorPlayerActions(const ULocalPlayer* NewPlayer);
+	UE_API void MonitorPlayerActions(const ULocalPlayer* NewPlayer);
 
-	void ActionBarUpdateBegin();
-	void ActionBarUpdateEnd();
+	UE_API void ActionBarUpdateBegin();
+	UE_API void ActionBarUpdateEnd();
+	UE_API bool DoAnyActionButtonsHaveMouseCapture() const;
 
 	UPROPERTY(EditAnywhere, Category = EntryLayout, meta=(MustImplement = "/Script/CommonUI.CommonBoundActionButtonInterface"))
 	TSubclassOf<UCommonButtonBase> ActionButtonClass;
@@ -79,3 +78,5 @@ private:
 
 	bool bIsRefreshQueued = false;
 };
+
+#undef UE_API

@@ -6,54 +6,58 @@
 #include "CommonUIRichTextData.h"
 #include "NativeGameplayTags.h"
 #include "Styling/SlateBrush.h"
-
-class UMaterialInterface;
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "ICommonUIModule.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
-#include "CommonTextBlock.h"
-#endif
-
 #include "CommonUISettings.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UMaterial;
+class UMaterialInterface;
 
 COMMONUI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_PlatformTrait_PlayInEditor);
 
-UCLASS(config = Game, defaultconfig)
-class COMMONUI_API UCommonUISettings : public UObject
+UENUM()
+enum class ECommonButtonAcceptKeyHandling
+{
+	// (Default for projects created prior to 5.6) When a CommonButton is focused, it will ignore the configured keys for slate navigation's Accept action (see FNavigationConfig::KeyActionRules),
+	// leaving it up to the button's Triggering Input Action to trigger the button's click event.
+	// This allows other objects to bind input actions to the accept action keys while focusing a common button.
+	Ignore,
+
+	// (Default for new projects as of 5.6) When a CommonButton is focused, it will let all inputs events flow through to the underlying SButton, therefore triggering the button's click event when
+	// pressing the configured keys for slate navigation's Accept action (see FNavigationConfig::KeyActionRules)
+	// This will prevent input actions that are bound to those keys from triggering while a CommonButton is focused.
+	TriggerClick,
+};
+
+UCLASS(MinimalAPI, config = Game, defaultconfig)
+class UCommonUISettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UCommonUISettings(const FObjectInitializer& Initializer = FObjectInitializer::Get());
-	UCommonUISettings(FVTableHelper& Helper);
-	~UCommonUISettings();
+	UE_API UCommonUISettings(const FObjectInitializer& Initializer = FObjectInitializer::Get());
+	UE_API UCommonUISettings(FVTableHelper& Helper);
+	UE_API ~UCommonUISettings();
 
 	// Called to load CommonUISetting data, if bAutoLoadData if set to false then game code must call LoadData().
-	void LoadData();
+	UE_API void LoadData();
 
 	//~UObject interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
-	virtual void PostInitProperties() override;
+	UE_API virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
+	UE_API virtual void PostInitProperties() override;
 	//~End of UObject interface
 
 	// Called by the module startup to auto load CommonUISetting data if bAutoLoadData is true.
-	void AutoLoadData();
+	UE_API void AutoLoadData();
 
-	UCommonUIRichTextData* GetRichTextData() const;
-	const FSlateBrush& GetDefaultThrobberBrush() const;
-	UObject* GetDefaultImageResourceObject() const;
-	const FGameplayTagContainer& GetPlatformTraits() const;
+	UE_API UCommonUIRichTextData* GetRichTextData() const;
+	UE_API const FSlateBrush& GetDefaultThrobberBrush() const;
+	UE_API UObject* GetDefaultImageResourceObject() const;
+	UE_API const FGameplayTagContainer& GetPlatformTraits() const;
+	UE_API ECommonButtonAcceptKeyHandling GetCommonButtonAcceptKeyHandling() const;
 
 private:
 
@@ -79,6 +83,12 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = "Visibility", meta=(Categories="Platform.Trait", ConfigHierarchyEditable))
 	TArray<FGameplayTag> PlatformTraits;
 
+	/**
+	 * How should CommonButton widgets handle SlateNavigation Accept actions?
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Button")
+	ECommonButtonAcceptKeyHandling CommonButtonAcceptKeyHandling;
+
 private:
 	void LoadEditorData();
 	void RebuildTraitContainer();
@@ -102,3 +112,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCommonUIRichTextData> RichTextDataInstance;
 };
+
+#undef UE_API

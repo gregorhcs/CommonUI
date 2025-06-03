@@ -5,39 +5,41 @@
 #include "Components/Border.h"
 #include "CommonBorder.generated.h"
 
+#define UE_API COMMONUI_API
+
 struct FDesignerChangedEventArgs;
 
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  * We return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
  */
-UCLASS(Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonBorderStyle : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
+class UCommonBorderStyle : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UCommonBorderStyle();
+	UE_API UCommonBorderStyle();
 	
 	/** The brush for the background of the border */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties")
 	FSlateBrush Background;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Border Style|Getters")
-	void GetBackgroundBrush(FSlateBrush& Brush) const;
+	UE_API void GetBackgroundBrush(FSlateBrush& Brush) const;
 };
 
 /**
  * Uses the border style template defined in CommonUI project settings by default
  */
-UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Border"))
-class COMMONUI_API UCommonBorder : public UBorder
+UCLASS(MinimalAPI, Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Border"))
+class UCommonBorder : public UBorder
 {
 	GENERATED_UCLASS_BODY()
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "Common Border")
-	void SetStyle(TSubclassOf<UCommonBorderStyle> InStyle);
+	UE_API void SetStyle(TSubclassOf<UCommonBorderStyle> InStyle);
 
 	/** References the border style to use */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Border", meta = (ExposeOnSpawn = true))
@@ -58,20 +60,20 @@ public:
 #endif
 
 protected:
-	virtual void PostLoad() override;
+	UE_API virtual void PostLoad() override;
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void SynchronizeProperties() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
-	void SafeAreaUpdated();
+	UE_API void SafeAreaUpdated();
 	void DebugSafeAreaUpdated(const FMargin& NewSafeZone, bool bShouldRecacheMetrics) { SafeAreaUpdated(); };
 #if WITH_EDITOR
-	virtual void OnCreationFromPalette() override;
-	const FText GetPaletteCategory() override;
-	virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
+	UE_API virtual void OnCreationFromPalette() override;
+	UE_API const FText GetPaletteCategory() override;
+	UE_API virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
 #endif // WITH_EDITOR
 
 protected:
@@ -81,10 +83,8 @@ protected:
 #endif
 
 private:
-	const UCommonBorderStyle* GetStyleCDO() const;
+	UE_API const UCommonBorderStyle* GetStyleCDO() const;
 
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#endif
+#undef UE_API

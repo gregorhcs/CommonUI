@@ -7,6 +7,9 @@
 #include "Input/CommonUIInputSettings.h" // IWYU pragma: keep
 #include "Input/UIActionBindingHandle.h"
 
+#define UE_API COMMONUI_API
+
+enum class ECommonInputType : uint8;
 enum EInputEvent : int;
 struct FKey;
 struct FUIActionKeyMapping;
@@ -23,43 +26,50 @@ enum class EProcessHoldActionResult
 	Unhandled
 };
 
-struct COMMONUI_API FUIActionBinding
+struct FUIActionBinding
 {
 	FUIActionBinding() = delete;
 	FUIActionBinding(const FUIActionBinding&) = delete;
 	FUIActionBinding(FUIActionBinding&&) = delete;
 
-	static FUIActionBindingHandle TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs);
+	UE_DEPRECATED(5.6, "Calling FUIActionBinding::TryCreate without a user index is deprecated. Call the version with the UserIndex param.")
+	static UE_API FUIActionBindingHandle TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs);
+	static UE_API FUIActionBindingHandle TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs, int32 UserIndex);
 	
-	static TSharedPtr<FUIActionBinding> FindBinding(FUIActionBindingHandle Handle);
-	static void CleanRegistrations();
+	static UE_API TSharedPtr<FUIActionBinding> FindBinding(FUIActionBindingHandle Handle);
+	static UE_API void CleanRegistrations();
 
 	bool operator==(const FUIActionBindingHandle& OtherHandle) const { return Handle == OtherHandle; }
 
 	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
-	FCommonInputActionDataBase* GetLegacyInputActionData() const;
+	UE_API FCommonInputActionDataBase* GetLegacyInputActionData() const;
 
-	EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent);
-	bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent);
-	FString ToDebugString() const;
+	UE_API EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent);
+	UE_API bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent);
+	UE_API FString ToDebugString() const;
 
-	void BeginHold();
-	bool UpdateHold(float TargetHoldTime);
-	void CancelHold();
-	void BeginRollback(float TargetHoldRollbackTime, float HoldTime, FUIActionBindingHandle BindingHandle);
-	double GetSecondsHeld() const;
-	bool IsHoldActive() const;
-	void ResetHold();
+	UE_API void BeginHold();
+	UE_API bool UpdateHold(float TargetHoldTime);
+	UE_API void CancelHold();
+	UE_API void BeginRollback(float TargetHoldRollbackTime, float HoldTime, FUIActionBindingHandle BindingHandle);
+	UE_API double GetSecondsHeld() const;
+	UE_API bool IsHoldActive() const;
+	UE_API void ResetHold();
 
 	FName ActionName;
 	EInputEvent InputEvent;
 	bool bConsumesInput = true;
 	bool bIsPersistent = false;
 	
+	int32 PriorityWithinCollection = 0;
+
 	TWeakObjectPtr<const UWidget> BoundWidget;
 	ECommonInputMode InputMode;
 
+	int32 UserIndex = INDEX_NONE;
+
 	bool bDisplayInActionBar = false;
+	TSet<ECommonInputType> InputTypesExemptFromValidKeyCheck;
 	FText ActionDisplayName;
 	
 	TWeakPtr<FActionRouterBindingCollection> OwningCollection;
@@ -84,7 +94,7 @@ struct COMMONUI_API FUIActionBinding
 	TWeakObjectPtr<const UInputAction> InputAction;
 
 private:
-	FUIActionBinding(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs);
+	UE_API FUIActionBinding(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs);
 	
 	// At what time in seconds did the hold start?
 	double HoldStartTime = -1.0;
@@ -104,16 +114,13 @@ private:
 	// Handle for ticker spawned for button hold rollback
 	FTSTicker::FDelegateHandle HoldProgressRollbackTickerHandle;
 
-	static int32 IdCounter;
-	static TMap<FUIActionBindingHandle, TSharedPtr<FUIActionBinding>> AllRegistrationsByHandle;
+	static UE_API int32 IdCounter;
+	static UE_API TMap<FUIActionBindingHandle, TSharedPtr<FUIActionBinding>> AllRegistrationsByHandle;
 	
 	// All keys currently being tracked for a hold action
-	static TMap<FKey, FUIActionBindingHandle> CurrentHoldActionKeys;
+	static UE_API TMap<FKey, FUIActionBindingHandle> CurrentHoldActionKeys;
 
 	friend struct FUIActionBindingHandle;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CoreMinimal.h"
-#include "Engine/EngineBaseTypes.h"
-#endif
+#undef UE_API

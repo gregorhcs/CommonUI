@@ -5,6 +5,8 @@
 #include "CommonBorder.h"
 #include "CommonVisibilityWidgetBase.generated.h"
 
+#define UE_API COMMONUI_API
+
 enum class ECommonInputType : uint8;
 enum class ESlateVisibility : uint8;
 
@@ -12,8 +14,8 @@ enum class ESlateVisibility : uint8;
  * A container that controls visibility based on Input type and Platform
  *
  */
-UCLASS(Deprecated)
-class COMMONUI_API UDEPRECATED_UCommonVisibilityWidgetBase : public UCommonBorder
+UCLASS(MinimalAPI, Deprecated)
+class UDEPRECATED_UCommonVisibilityWidgetBase : public UCommonBorder
 {
 	GENERATED_UCLASS_BODY()
 
@@ -38,20 +40,17 @@ public:
 
 protected:
 	// Begin UWidget
-	virtual void OnWidgetRebuilt() override;
+	UE_API virtual void OnWidgetRebuilt() override;
 	// End UWidget
 
-	void UpdateVisibility();
+	UE_API void UpdateVisibility();
 
-	void ListenToInputMethodChanged(bool bListen = true);
+	UE_API void ListenToInputMethodChanged(bool bListen = true);
 
-	void HandleInputMethodChanged(ECommonInputType input);
+	UE_API void HandleInputMethodChanged(ECommonInputType input);
 
 	UFUNCTION()
-	static const TArray<FName>& GetRegisteredPlatforms();
+	static UE_API const TArray<FName>& GetRegisteredPlatforms();
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonUITypes.h"
-#include "CoreMinimal.h"
-#endif
+#undef UE_API

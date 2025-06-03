@@ -6,6 +6,8 @@
 #include "Slate/SCommonAnimatedSwitcher.h"
 #include "CommonActivatableWidgetContainer.generated.h"
 
+#define UE_API COMMONUI_API
+
 class SCommonAnimatedSwitcher;
 enum class ECommonSwitcherTransition : uint8;
 enum class ETransitionCurve : uint8;
@@ -18,13 +20,13 @@ class SSpacer;
  * Base of widgets built to manage N activatable widgets, displaying one at a time.
  * Intentionally meant to be black boxes that do not expose child/slot modification like a normal panel widget.
  */
-UCLASS(Abstract)
-class COMMONUI_API UCommonActivatableWidgetContainerBase : public UWidget
+UCLASS(MinimalAPI, Abstract)
+class UCommonActivatableWidgetContainerBase : public UWidget
 {
 	GENERATED_BODY()
 
 public:
-	UCommonActivatableWidgetContainerBase(const FObjectInitializer& Initializer);
+	UE_API UCommonActivatableWidgetContainerBase(const FObjectInitializer& Initializer);
 
 	/** Adds an activatable widget to the container. See BP_AddWidget for more info. */
 	template <typename ActivatableWidgetT = UCommonActivatableWidget>
@@ -63,24 +65,24 @@ public:
 	 * 
 	 * NOTE: In general, it is *strongly* recommended that you opt for the class-based AddWidget above. This one is mostly just here for legacy support.
 	 */
-	void AddWidgetInstance(UCommonActivatableWidget& ActivatableWidget);
+	UE_API void AddWidgetInstance(UCommonActivatableWidget& ActivatableWidget);
 
-	void RemoveWidget(UCommonActivatableWidget& WidgetToRemove);
+	UE_API void RemoveWidget(UCommonActivatableWidget& WidgetToRemove);
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetStack)
-	UCommonActivatableWidget* GetActiveWidget() const;
+	UE_API UCommonActivatableWidget* GetActiveWidget() const;
 
 	const TArray<UCommonActivatableWidget*>& GetWidgetList() const { return WidgetList; }
 
-	int32 GetNumWidgets() const;
+	UE_API int32 GetNumWidgets() const;
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
-	void ClearWidgets();
+	UE_API void ClearWidgets();
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
-	void SetTransitionDuration(float Duration);
+	UE_API void SetTransitionDuration(float Duration);
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
-	float GetTransitionDuration() const;
+	UE_API float GetTransitionDuration() const;
 
 	DECLARE_EVENT_OneParam(UCommonActivatableWidgetContainerBase, FOnDisplayedWidgetChanged, UCommonActivatableWidget*);
 	FOnDisplayedWidgetChanged& OnDisplayedWidgetChanged() const { return OnDisplayedWidgetChangedEvent; }
@@ -89,13 +91,17 @@ public:
 	FTransitioningChanged OnTransitioningChanged;
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	virtual void OnWidgetRebuilt() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void OnWidgetRebuilt() override;
 
 	virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) { unimplemented(); }
 
-	void SetSwitcherIndex(int32 TargetIndex, bool bInstantTransition = false);
+	UE_API void SetSwitcherIndex(int32 TargetIndex, bool bInstantTransition = false);
+
+#if WITH_EDITOR
+	UE_API virtual const FText GetPaletteCategory() override;
+#endif // WITH_EDITOR
 
 	/** The type of transition to play between widgets */
 	UPROPERTY(EditAnywhere, Category = Transition)
@@ -108,6 +114,14 @@ protected:
 	/** The total duration of a single transition between widgets */
 	UPROPERTY(EditAnywhere, Category = Transition)
 	float TransitionDuration = 0.4f;
+
+	/**
+	 * Whether to completely reset the pool of widgets when slate resources are released.
+	 * This usually happens when changing maps. You may not want to have all frontend screens loaded taking up memory while in game and vice versa.
+	 * Enabling this means widgets will have to be loaded again when re-entering the map next time.
+	 */
+	UPROPERTY(EditAnywhere, Category = Performance)
+	bool bResetPoolWhenReleasingSlateResources = false;
 
 	/**
 	 * Controls how we will choose another widget if a transitioning widget is removed during the transition.
@@ -140,17 +154,17 @@ private:
 	 * So in practice, you should not trust that any prior state has been retained on the returned widget, and establish all appropriate properties every time.
 	 */
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetStack, meta = (DeterminesOutputType = ActivatableWidgetClass, DisplayName = "Push Widget"))
-	UCommonActivatableWidget* BP_AddWidget(TSubclassOf<UCommonActivatableWidget> ActivatableWidgetClass);
+	UE_API UCommonActivatableWidget* BP_AddWidget(TSubclassOf<UCommonActivatableWidget> ActivatableWidgetClass);
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
-	void RemoveWidget(UCommonActivatableWidget* WidgetToRemove);
+	UE_API void RemoveWidget(UCommonActivatableWidget* WidgetToRemove);
 
-	UCommonActivatableWidget* AddWidgetInternal(TSubclassOf<UCommonActivatableWidget> ActivatableWidgetClass, TFunctionRef<void(UCommonActivatableWidget&)> InitFunc);
-	void RegisterInstanceInternal(UCommonActivatableWidget& NewWidget);
+	UE_API UCommonActivatableWidget* AddWidgetInternal(TSubclassOf<UCommonActivatableWidget> ActivatableWidgetClass, TFunctionRef<void(UCommonActivatableWidget&)> InitFunc);
+	UE_API void RegisterInstanceInternal(UCommonActivatableWidget& NewWidget);
 
-	void HandleSwitcherIsTransitioningChanged(bool bIsTransitioning);
-	void HandleActiveIndexChanged(int32 ActiveWidgetIndex);
-	void HandleActiveWidgetDeactivated(UCommonActivatableWidget* DeactivatedWidget);
+	UE_API void HandleSwitcherIsTransitioningChanged(bool bIsTransitioning);
+	UE_API void HandleActiveIndexChanged(int32 ActiveWidgetIndex);
+	UE_API void HandleActiveWidgetDeactivated(UCommonActivatableWidget* DeactivatedWidget);
 	
 	/**
 	 * This is a bit hairy and very edge-casey, but a necessary measure to ensure expected Slate interaction behavior.
@@ -165,7 +179,7 @@ private:
 	 * This does delay destruction of the removed SObjectWidget by one frame, but that does not present any discernable issue,
 	 * as it's no different from any other inactive widget within a switcher.
 	 */
-	void ReleaseWidget(const TSharedRef<SWidget>& WidgetToRelease);
+	UE_API void ReleaseWidget(const TSharedRef<SWidget>& WidgetToRelease);
 	TArray<TSharedPtr<SWidget>> ReleasedWidgets;
 
 	bool bRemoveDisplayedWidgetPostTransition = false;
@@ -184,18 +198,18 @@ private:
  * - When that top-most displayed widget deactivates, it's automatically removed and the preceding entry is displayed/activated.
  * - If RootContent is provided, it can never be removed regardless of activation state
  */
-UCLASS()
-class COMMONUI_API UCommonActivatableWidgetStack : public UCommonActivatableWidgetContainerBase
+UCLASS(MinimalAPI)
+class UCommonActivatableWidgetStack : public UCommonActivatableWidgetContainerBase
 {
 	GENERATED_BODY()
 
 public:
 
-	UCommonActivatableWidget* GetRootContent() const;
+	UE_API UCommonActivatableWidget* GetRootContent() const;
 
 protected:
-	virtual void SynchronizeProperties() override;
-	virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) override;
+	UE_API virtual void SynchronizeProperties() override;
+	UE_API virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) override;
 	
 private:
 	/** Optional widget to auto-generate as the permanent root element of the stack */
@@ -217,16 +231,13 @@ private:
  * - When the active widget deactivates, it is automatically removed from the widget, 
  *		released back to the pool, and the next widget in the queue (if any) is displayed
  */
-UCLASS()
-class COMMONUI_API UCommonActivatableWidgetQueue : public UCommonActivatableWidgetContainerBase
+UCLASS(MinimalAPI)
+class UCommonActivatableWidgetQueue : public UCommonActivatableWidgetContainerBase
 {
 	GENERATED_BODY()
 
 protected:
-	virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) override;
+	UE_API virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) override;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Components/Widget.h"
-#include "Slate/SCommonAnimatedSwitcher.h"
-#endif
+#undef UE_API

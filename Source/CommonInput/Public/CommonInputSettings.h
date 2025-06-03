@@ -17,34 +17,36 @@
 #include "Engine/PlatformSettings.h"
 #include "CommonInputSettings.generated.h"
 
+#define UE_API COMMONINPUT_API
+
 class UInputAction;
 
-UCLASS(config = Game, defaultconfig)
-class COMMONINPUT_API UCommonInputSettings : public UDeveloperSettings
+UCLASS(MinimalAPI, config = Game, defaultconfig)
+class UCommonInputSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UCommonInputSettings(const FObjectInitializer& Initializer);
+	UE_API UCommonInputSettings(const FObjectInitializer& Initializer);
 
 	// Called to load CommonUISetting data, if bAutoLoadData if set to false then game code must call LoadData().
-	void LoadData();
+	UE_API void LoadData();
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
     
     // Called to check that the data we have previously attempted to load is actually loaded and will attempt to load if it is not.
-    void ValidateData();
+    UE_API void ValidateData();
 
-	FDataTableRowHandle GetDefaultClickAction() const;
-	FDataTableRowHandle GetDefaultBackAction() const;
+	UE_API FDataTableRowHandle GetDefaultClickAction() const;
+	UE_API FDataTableRowHandle GetDefaultBackAction() const;
 	
 	/** Default Hold Data */
-	TSubclassOf<UCommonUIHoldData> GetDefaultHoldData() const;
+	UE_API TSubclassOf<UCommonUIHoldData> GetDefaultHoldData() const;
 
-	UInputAction* GetEnhancedInputClickAction() const;
-	UInputAction* GetEnhancedInputBackAction() const;
+	UE_API UInputAction* GetEnhancedInputClickAction() const;
+	UE_API UInputAction* GetEnhancedInputBackAction() const;
 
 	bool GetEnableInputMethodThrashingProtection() const { return bEnableInputMethodThrashingProtection; }
 
@@ -64,14 +66,16 @@ public:
 
 	TObjectPtr<UCommonInputActionDomainTable> GetActionDomainTable() const { return ActionDomainTablePtr; }
 
+	const TMap<FName, FName>& GetPlatformNameUpgradeMap() const { return PlatformNameUpgrades; }
+
 public:
 
 	/** Static version of enhanced input support check, exists to hide based on edit condition */
 	UFUNCTION()
-	static bool IsEnhancedInputSupportEnabled(); 
+	static UE_API bool IsEnhancedInputSupportEnabled(); 
 
 private:
-	virtual void PostInitProperties() override;
+	UE_API virtual void PostInitProperties() override;
 
 	/** Create a derived asset from UCommonUIInputData to store Input data for your game.*/
 	UPROPERTY(config, EditAnywhere, Category = "Input", Meta=(AllowAbstract=false))
@@ -119,10 +123,18 @@ private:
 	/** Create a derived asset from UCommonInputActionDomainTable to store ordered ActionDomain data for your game */
 	UPROPERTY(config, EditAnywhere, Category = "Action Domain")
 	TSoftObjectPtr<UCommonInputActionDomainTable> ActionDomainTable;
+	
+	/**
+	* A map of Common Input platform names to a new one, which you can use
+	* to upgrade your Input Action data tables if you add a new platform to your
+	* project and wish to copy from some existing data
+	*/
+	UPROPERTY(config, EditAnywhere, Category = "Input", meta = (ConfigRestartRequired = true))
+	TMap<FName, FName> PlatformNameUpgrades;
 
 private:
-	void LoadInputData();
-	void LoadActionDomainTable();
+	UE_API void LoadInputData();
+	UE_API void LoadActionDomainTable();
 
 	bool bInputDataLoaded;
 	bool bActionDomainTableLoaded;
@@ -133,3 +145,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCommonInputActionDomainTable> ActionDomainTablePtr;
 };
+
+#undef UE_API

@@ -4,6 +4,8 @@
 
 #include "Widgets/Input/SButton.h"
 
+#define UE_API COMMONUI_API
+
 //////////////////////////////////////////////////////////////////////////
 // SCommonButton
 //////////////////////////////////////////////////////////////////////////
@@ -12,7 +14,7 @@
  * Needed because NativeOnMouseEnter is not received by disabled widgets,
  * but that also disables our anchored tooltips.
  */
-class COMMONUI_API SCommonButton : public SButton
+class SCommonButton : public SButton
 {
 public:
 	SLATE_BEGIN_ARGS(SCommonButton)
@@ -76,40 +78,40 @@ public:
 		bHovered = false;
 	}
 
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	UE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
+	UE_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	UE_API virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
-	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	UE_API virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
-	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+	UE_API virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 
-	virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	UE_API virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
 
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	UE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	UE_API virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-	void SetIsButtonEnabled(bool bInIsButtonEnabled);
+	UE_API void SetIsButtonEnabled(bool bInIsButtonEnabled);
 
-	void SetIsButtonFocusable(bool bInIsButtonFocusable);
+	UE_API void SetIsButtonFocusable(bool bInIsButtonFocusable);
 
-	void SetIsInteractionEnabled(bool bInIsInteractionEnabled);
+	UE_API void SetIsInteractionEnabled(bool bInIsInteractionEnabled);
 
-	bool IsInteractable() const;
+	UE_API bool IsInteractable() const;
 
 	/** Overridden to fire delegate for external listener */
-	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent);
+	UE_API virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent);
 
-	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	UE_API virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	UE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
 	/** Press the button */
-	virtual void Press() override;
+	UE_API virtual void Press() override;
 
 private:
 	FOnClicked OnDoubleClicked;
@@ -129,3 +131,5 @@ private:
 	/** True if mouse over the widget */
 	bool bHovered;
 };
+
+#undef UE_API

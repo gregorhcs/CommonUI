@@ -4,6 +4,7 @@
 #include "CommonTextBlock.h"
 #include "Input/UIActionBinding.h"
 #include "CommonActionWidget.h"
+#include "CommonUITypes.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/LocKeyFuncs.h"
 
@@ -24,6 +25,12 @@ void UCommonBoundActionButton::SetRepresentedAction(FUIActionBindingHandle InBin
 	if (TSharedPtr<FUIActionBinding> NewBinding = FUIActionBinding::FindBinding(InBindingHandle))
 	{
 		NewBinding->OnHoldActionProgressed.AddUObject(this, &UCommonBoundActionButton::NativeOnActionProgress);
+
+		if (bLinkRequiresHoldToBindingHold)
+		{
+			const FCommonInputActionDataBase* InputActionData = NewBinding->GetLegacyInputActionData();
+			SetRequiresHold(InputActionData ? InputActionData->HasHoldBindings() : false);
+		}
 	}
 }
 
@@ -56,8 +63,7 @@ void UCommonBoundActionButton::UpdateInputActionWidget()
 		FText ActionDisplayName = BindingHandle.GetDisplayName();
 		if (BindingHandle.IsValid())
 		{
-			const UWidget* BoundWidget = BindingHandle.GetBoundWidget();
-			ULocalPlayer* BindingOwner = BoundWidget ? BoundWidget->GetOwningLocalPlayer() : nullptr;
+			ULocalPlayer* BindingOwner = BindingHandle.GetBoundLocalPlayer();
 			if (ensure(BindingOwner) && BindingOwner != GetOwningLocalPlayer())
 			{
 				TOptional<int32> BoundPlayerIndex = FSlateApplication::Get().GetUserIndexForController(BindingOwner->GetControllerId());
@@ -77,6 +83,26 @@ void UCommonBoundActionButton::UpdateInputActionWidget()
 		}
 		
 		OnUpdateInputAction();
+	}
+}
+
+void UCommonBoundActionButton::UpdateHoldData(ECommonInputType CurrentInputType)
+{
+	if (bLinkRequiresHoldToBindingHold)
+	{
+		if (const TSharedPtr<FUIActionBinding> ActionBinding = FUIActionBinding::FindBinding(BindingHandle))
+		{
+			if (const FCommonInputActionDataBase* DataTableRow = ActionBinding->GetLegacyInputActionData())
+			{
+				const FCommonInputTypeInfo InputTypeInfo = DataTableRow->GetCurrentInputTypeInfo(GetInputSubsystem());
+				HoldTime = InputTypeInfo.HoldTime;
+				HoldRollbackTime = InputTypeInfo.HoldRollbackTime;
+			}
+		}
+	}
+	else
+	{
+		Super::UpdateHoldData(CurrentInputType);
 	}
 }
 

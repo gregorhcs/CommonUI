@@ -5,6 +5,7 @@
 #include "CommonInputBaseTypes.h"
 #include "CommonInputSubsystem.h"
 #include "CommonUIPrivate.h"
+#include "CommonInputSettings.h"
 #include "Engine/Blueprint.h"
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystems.h"
@@ -13,9 +14,11 @@
 #include "ICommonInputModule.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "Misc/ConfigCacheIni.h"
 #include "PlayerMappableKeySettings.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/StyleDefaults.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUITypes)
 
@@ -147,6 +150,47 @@ FSlateBrush FCommonInputActionDataBase::GetCurrentInputActionIcon(const UCommonI
 	return *FStyleDefaults::GetNoBrush();
 }
 
+bool FCommonInputActionDataBase::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
+
+	// doesn't actually serialize, just write the custom version for PostSerialize
+	return false;
+}
+
+void FCommonInputActionDataBase::PostSerialize(const FArchive& Ar)
+{
+	// During load, if the asset version is lower then when we added our platform upgrade path
+	// then we should run that upgrade path data
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::CommonUIPlatformNamingUpgradeOption)
+		{
+			// Upgrade the gamepad override path stuff!
+			const TMap<FName, FName>& PlatformNameRedirects = GetDefault<UCommonInputSettings>()->GetPlatformNameUpgradeMap();
+
+			for (const TPair<FName, FName>& Redirect : PlatformNameRedirects)
+			{
+				// If there is a platform override defined for one of the platforms we want to copy from...
+				const FCommonInputTypeInfo* FromPadData = GamepadInputOverrides.Find(Redirect.Key);
+				if (!FromPadData)
+				{
+					continue;
+				}
+
+				// Make sure that the override is not already defined for this platform
+				if (GamepadInputOverrides.Contains(Redirect.Value))
+				{
+					continue;
+				}
+
+				// Add the new gamepad override data and initialize it to the data which we had for the older platform name
+				GamepadInputOverrides.Add(Redirect.Value, FCommonInputTypeInfo (*FromPadData));
+			}
+		}
+	}
+}
+
 void FCommonInputActionDataBase::OnPostDataImport(const UDataTable* InDataTable, const FName InRowName, TArray<FString>& OutCollectedImportProblems)
 {
 #if WITH_EDITOR
@@ -246,6 +290,11 @@ FSlateBrush CommonUI::GetIconForInputActions(const UCommonInputSubsystem* Common
 
 bool CommonUI::IsEnhancedInputSupportEnabled()
 {
+	if (IsEngineExitRequested())
+	{
+		return false;
+	}
+
 	static bool bEnabled = ICommonInputModule::Get().GetSettings().GetEnableEnhancedInputSupport();
 	return bEnabled;
 }
@@ -302,7 +351,7 @@ FSlateBrush CommonUI::GetIconForEnhancedInputAction(const UCommonInputSubsystem*
 
 bool CommonUI::ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction)
 {
-	if (!LocalPlayer)
+	if (!LocalPlayer || !InputAction)
 	{
 		return false;
 	}
@@ -315,16 +364,7 @@ bool CommonUI::ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonI
 
 	for (const FKey& Key : Keys)
 	{
-		if (!Key.IsValid())
-		{
-			continue;
-		}
-
-		bool bIsValidTouch = Key.IsTouch() && InputType == ECommonInputType::Touch;
-		bool bIsValidGamepad = Key.IsGamepadKey() && InputType == ECommonInputType::Gamepad;
-		bool bIsValidMouseAndKeyboard = !Key.IsTouch() && !Key.IsGamepadKey() && InputType == ECommonInputType::MouseAndKeyboard;
-
-		if (bIsValidTouch || bIsValidGamepad || bIsValidMouseAndKeyboard)
+		if (IsKeyValidForInputType(Key, InputType))
 		{
 			return true;
 		}
@@ -335,7 +375,7 @@ bool CommonUI::ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonI
 
 FKey CommonUI::GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const UInputAction* InputAction)
 {
-	if (!LocalPlayer)
+	if (!LocalPlayer || !InputAction)
 	{
 		return FKey();
 	}
@@ -348,24 +388,45 @@ FKey CommonUI::GetFirstKeyForInputType(const ULocalPlayer* LocalPlayer, ECommonI
 
 	for (const FKey& Key : Keys)
 	{
-		if (!Key.IsValid())
-		{
-			continue;
-		}
-
-		if (Key.IsTouch() && InputType == ECommonInputType::Touch)
-		{
-			return Key;
-		}
-		else if (Key.IsGamepadKey() && InputType == ECommonInputType::Gamepad)
-		{
-			return Key;
-		}
-		else if (!Key.IsTouch() && !Key.IsGamepadKey() && InputType == ECommonInputType::MouseAndKeyboard)
+		if (IsKeyValidForInputType(Key, InputType))
 		{
 			return Key;
 		}
 	}
 
 	return FKey();
+}
+
+bool CommonUI::ActionValidForInputType(const ULocalPlayer* LocalPlayer, ECommonInputType InputType, const FCommonInputActionDataBase* InputAction)
+{
+	if (!LocalPlayer || !InputAction)
+	{
+		return false;
+	}
+	
+	UCommonInputSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UCommonInputSubsystem>();
+	const FCommonInputTypeInfo& TypeInfo = InputAction->GetInputTypeInfo(InputType, InputSubsystem->GetCurrentGamepadName());
+	return IsKeyValidForInputType(TypeInfo.GetKey(), InputType);
+}
+
+bool CommonUI::IsKeyValidForInputType(const FKey& Key, ECommonInputType InputType)
+{
+	if (!Key.IsValid())
+	{
+		return false;
+	}
+
+	switch (InputType)
+	{
+	case ECommonInputType::MouseAndKeyboard:
+		return !Key.IsTouch() && !Key.IsGamepadKey();
+	case ECommonInputType::Gamepad:
+		return Key.IsGamepadKey();
+	case ECommonInputType::Touch:
+		return Key.IsTouch();
+	case ECommonInputType::Count:
+	default:
+		checkNoEntry(); // Unhandled type
+		return false;
+	}
 }

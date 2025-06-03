@@ -8,6 +8,8 @@
 #include "Input/NavigationReply.h"
 #include "CommonRotator.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonTextBlock;
 
 UENUM(BlueprintType)
@@ -23,31 +25,31 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRotatedWithDirection, int32, Val
 /**
 * A button that can rotate between given text labels.
 */
-UCLASS(meta = (DisableNativeTick))
-class COMMONUI_API UCommonRotator : public UCommonButtonBase
+UCLASS(MinimalAPI, meta = (DisableNativeTick))
+class UCommonRotator : public UCommonButtonBase
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	virtual bool Initialize() override;
-	virtual FNavigationReply NativeOnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent, const FNavigationReply& InDefaultReply);
+	UE_API virtual bool Initialize() override;
+	UE_API virtual FNavigationReply NativeOnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent, const FNavigationReply& InDefaultReply);
 
 	/** Handle and use controller navigation to rotate text */
 	FNavigationDelegate OnNavigation;
-	TSharedPtr<SWidget> HandleNavigation(EUINavigation UINavigation);
+	UE_API TSharedPtr<SWidget> HandleNavigation(EUINavigation UINavigation);
 
 	/** Set the array of texts available */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void PopulateTextLabels(TArray<FText> Labels);
+	UE_API void PopulateTextLabels(TArray<FText> Labels);
 
 	/** Gets the current text value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	FText GetSelectedText() const;
+	UE_API FText GetSelectedText() const;
 
 	/** Sets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	virtual void SetSelectedItem(int32 InValue);
+	UE_API virtual void SetSelectedItem(int32 InValue);
 
 	/** Gets the current selected index */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
@@ -55,11 +57,11 @@ public:
 
 	/** Shift the current text left. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ShiftTextLeft();
+	UE_API void ShiftTextLeft();
 
 	/** Shift the current text right. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ShiftTextRight();
+	UE_API void ShiftTextRight();
 
 public:
 
@@ -76,15 +78,15 @@ public:
 	FRotationEvent OnRotatedEvent;
 
 protected:
-	void ShiftTextLeftInternal(bool bFromNavigation);
-	void ShiftTextRightInternal(bool bFromNavigation);
+	UE_API void ShiftTextLeftInternal(bool bFromNavigation);
+	UE_API void ShiftTextRightInternal(bool bFromNavigation);
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = Events, meta = (DisplayName = "On Options Populated"))
-	void BP_OnOptionsPopulated(int32 Count);
+	UE_API void BP_OnOptionsPopulated(int32 Count);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Events, meta = (DisplayName = "On Options Selected"))
-	void BP_OnOptionSelected(int32 Index);
+	UE_API void BP_OnOptionSelected(int32 Index);
 
 protected:
 
@@ -99,10 +101,4 @@ protected:
 	int32 SelectedIndex;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "CommonBorder.h"
-#include "CommonTextBlock.h"
-#include "CommonUITypes.h"
-#include "CommonUserWidget.h"
-#include "Types/NavigationMetaData.h"
-#endif
+#undef UE_API

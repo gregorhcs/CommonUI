@@ -5,10 +5,13 @@
 #include "Engine/DataTable.h"
 #include "UITag.h"
 #include "CommonInputModeTypes.h"
+#include "CommonInputTypeEnum.h"
 #include "Engine/EngineBaseTypes.h"
 #include "InputAction.h"
 
-struct COMMONUI_API FBindUIActionArgs
+#define UE_API COMMONUI_API
+
+struct FBindUIActionArgs
 {
 	FBindUIActionArgs(FUIActionTag InActionTag, const FSimpleDelegate& InOnExecuteAction)
 		: ActionTag(InActionTag)
@@ -45,9 +48,9 @@ struct COMMONUI_API FBindUIActionArgs
 		, OnExecuteAction(InOnExecuteAction)
 	{}
 
-	FName GetActionName() const;
+	UE_API FName GetActionName() const;
 
-	bool ActionHasHoldMappings() const;
+	UE_API bool ActionHasHoldMappings() const;
 
 	FUIActionTag ActionTag;
 
@@ -58,6 +61,12 @@ struct COMMONUI_API FBindUIActionArgs
 
 	ECommonInputMode InputMode = ECommonInputMode::Menu;
 	EInputEvent KeyEvent = IE_Pressed;
+
+	/**
+	 * By default, the action bar only displays prompts for actions with keys valid for the current input type, any input types added here will
+	 * skip that check and display this action regardless of the bound keys
+	 */
+	TSet<ECommonInputType> InputTypesExemptFromValidKeyCheck = { ECommonInputType::MouseAndKeyboard, ECommonInputType::Touch };
 
 	/**
 	 * A persistent binding is always registered and will be executed regardless of the activation status of the binding widget's parentage.
@@ -81,6 +90,12 @@ struct COMMONUI_API FBindUIActionArgs
 	/** Optional display name to associate with this binding instead of the default */
 	FText OverrideDisplayName;
 
+	/**
+	 * Normally, actions on a widget are triggered in the order they're registered. We can assign a priority to ensure a certain order of execution.
+	 * 0 is the order of registration.
+	 */
+	int32 PriorityWithinCollection = 0;
+
 	FSimpleDelegate OnExecuteAction;
 
 	/** If the bound action has any hold mappings, this will fire each frame while held. Has no bearing on actual execution and wholly irrelevant for non-hold actions */
@@ -96,8 +111,4 @@ struct COMMONUI_API FBindUIActionArgs
 	FOnHoldActionReleased OnHoldActionReleased;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "InputCoreTypes.h"
-#include "Misc/EnumRange.h"
-#include "UIActionBindingHandle.h"
-#endif
+#undef UE_API

@@ -4,12 +4,14 @@
 
 #include "Widgets/Input/SSlider.h"
 
+#define UE_API COMMONUI_API
+
 struct FAnalogInputEvent;
 
 /**
  * A Slate slider control is a linear scale and draggable handle.
  */
-class COMMONUI_API SAnalogSlider : public SSlider
+class SAnalogSlider : public SSlider
 {
 public:
 
@@ -81,15 +83,15 @@ public:
 	*
 	* @param InDeclaration A declaration from which to construct the widget.
 	*/
-	void Construct(const SAnalogSlider::FArguments& InDeclaration);
+	UE_API void Construct(const SAnalogSlider::FArguments& InDeclaration);
 
 	// Input overrides, for adding controller input to the slider
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	UE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	UE_API virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	UE_API virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
+	UE_API virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 
-	void SetUsingGamepad(bool InUsingGamepad);
+	UE_API void SetUsingGamepad(bool InUsingGamepad);
 
 private:
 	// Holds a delegate that is executed when the mouse is let up and a capture ends.
@@ -100,3 +102,5 @@ private:
 	/** The last app time we stepped with analog input */
 	double LastAnalogStepTime = 0;
 };
+
+#undef UE_API

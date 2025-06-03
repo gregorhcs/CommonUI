@@ -3,6 +3,7 @@
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "CommonActivatableWidget.h"
 #include "CommonUIPrivate.h"
+#include "CommonWidgetPaletteCategories.h"
 #include "Slate/SCommonAnimatedSwitcher.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -12,7 +13,7 @@
 
 UCommonActivatableWidget* ActivatableWidgetFromSlate(const TSharedPtr<SWidget>& SlateWidget)
 {
-	if (SlateWidget && SlateWidget != SNullWidget::NullWidget && ensure(SlateWidget->GetType().IsEqual(TEXT("SObjectWidget"))))
+	if (SlateWidget && SlateWidget != SNullWidget::NullWidget && SlateWidget->GetMetaData<FCommonActivatableSlateMetaData>().IsValid())
 	{
 		UCommonActivatableWidget* ActivatableWidget = Cast<UCommonActivatableWidget>(StaticCastSharedPtr<SObjectWidget>(SlateWidget)->GetWidgetObject());
 		if (ensure(ActivatableWidget))
@@ -129,7 +130,14 @@ void UCommonActivatableWidgetContainerBase::ReleaseSlateResources(bool bReleaseC
 	ReleasedWidgets.Empty();
 	WidgetList.Reset();
 
-	GeneratedWidgetsPool.ReleaseAll(true);
+	if (bResetPoolWhenReleasingSlateResources)
+	{
+		GeneratedWidgetsPool.ResetPool();
+	}
+	else
+	{
+		GeneratedWidgetsPool.ReleaseAll(true);
+	}
 }
 
 void UCommonActivatableWidgetContainerBase::OnWidgetRebuilt()
@@ -167,6 +175,13 @@ void UCommonActivatableWidgetContainerBase::SetSwitcherIndex(int32 TargetIndex, 
 		MySwitcher->TransitionToIndex(TargetIndex, bInstantTransition);
 	}
 }
+
+#if WITH_EDITOR
+const FText UCommonActivatableWidgetContainerBase::GetPaletteCategory()
+{
+	return CommonWidgetPaletteCategories::Default;
+}
+#endif // WITH_EDITOR
 
 UCommonActivatableWidget* UCommonActivatableWidgetContainerBase::BP_AddWidget(TSubclassOf<UCommonActivatableWidget> ActivatableWidgetClass)
 {

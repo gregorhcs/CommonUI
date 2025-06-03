@@ -6,8 +6,10 @@
 
 #include "CommonUIRichTextData.generated.h"
 
+#define UE_API COMMONUI_API
+
 USTRUCT(BlueprintType)
-struct COMMONUI_API FRichTextIconData : public FTableRowBase
+struct FRichTextIconData : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -25,15 +27,15 @@ struct COMMONUI_API FRichTextIconData : public FTableRowBase
  * Derive from this class for rich text data per game
  * it is referenced in Common UI Settings, found in project settings UI
  */
-UCLASS(Abstract, Blueprintable, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonUIRichTextData : public UObject
+UCLASS(MinimalAPI, Abstract, Blueprintable, meta = (Category = "Common UI"))
+class UCommonUIRichTextData : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	static UCommonUIRichTextData* Get();
+	static UE_API UCommonUIRichTextData* Get();
 
-	const FRichTextIconData* FindIcon(const FName& InKey);
+	UE_API const FRichTextIconData* FindIcon(const FName& InKey);
 	const TMap<FName, uint8*>& GetIconMap() const { return InlineIconSet->GetRowMap(); }
 
 private:
@@ -41,7 +43,4 @@ private:
 	TObjectPtr<UDataTable> InlineIconSet;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPtr.h"
-#endif
+#undef UE_API

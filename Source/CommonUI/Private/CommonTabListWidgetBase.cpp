@@ -95,6 +95,7 @@ bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonB
 	// Tab book-keeping.
 	FCommonRegisteredTabInfo NewTabInfo;
 	NewTabInfo.TabIndex = NewTabIndex;
+	NewTabInfo.TabButtonClass = ButtonWidgetType;
 	NewTabInfo.TabButton = NewTabButton;
 	NewTabInfo.ContentInstance = ContentWidget;
 	RegisteredTabsByID.Add(TabNameID, NewTabInfo);
@@ -156,29 +157,13 @@ bool UCommonTabListWidgetBase::RemoveTab(FName TabNameID)
 
 void UCommonTabListWidgetBase::RemoveAllTabs()
 {
-	// We don't call RemoveTab_Internal(Iter->Key, Iter->Value); because that would individually remove TabButtonGroup buttons one by one
-	// Which is something we don't want when we are removing all tabs
-	if (TabButtonGroup)
+	TArray<FName> RegisteredTabIDs;
+	RegisteredTabsByID.GetKeys(RegisteredTabIDs);
+	for (const FName& RegisteredTabID : RegisteredTabIDs)
 	{
-		TabButtonGroup->RemoveAll();
+		// Go through the regular remove tab flow, so that we properly free up pooled widgets
+		RemoveTab(RegisteredTabID);
 	}
-	
-	for (TMap<FName, FCommonRegisteredTabInfo>::TIterator Iter(RegisteredTabsByID); Iter; ++Iter)
-	{
-		if (UCommonButtonBase* const TabButton =  Iter->Value.TabButton)
-		{
-			TabButton->RemoveFromParent();
-			
-			const FName Key = Iter->Key;
-
-			RegisteredTabsByID.Remove(Key);
-			
-			HandleTabRemoval(Key, TabButton);
-			OnTabButtonRemoval.Broadcast(Key, TabButton);
-		}
-	}
-
-	TabButtonWidgetPool.ReleaseAll();
 }
 
 int32 UCommonTabListWidgetBase::GetTabCount() const
@@ -376,13 +361,64 @@ UCommonButtonBase* UCommonTabListWidgetBase::GetTabButtonBaseByID(FName TabNameI
 	return nullptr;
 }
 
+bool UCommonTabListWidgetBase::HasTabContentWidget(const FName TabNameId) const
+{
+	const FCommonRegisteredTabInfo* FoundTabInfo = RegisteredTabsByID.Find(TabNameId);
+	return FoundTabInfo && FoundTabInfo->ContentInstance != nullptr;
+}
+
+bool UCommonTabListWidgetBase::RegisterTabContentWidget(const FName TabNameId, UWidget* ContentWidget)
+{
+	if (!ensure(ContentWidget))
+	{
+		return false;
+	}
+
+	FCommonRegisteredTabInfo* FoundTabInfo = RegisteredTabsByID.Find(TabNameId);
+	if (!ensure(FoundTabInfo))
+	{
+		return false;
+	}
+
+	UWidget* OldContentWidget = FoundTabInfo->ContentInstance;
+	FoundTabInfo->ContentInstance = ContentWidget;
+
+	if (UCommonAnimatedSwitcher* Switcher = LinkedSwitcher.Get())
+	{
+		// Remove Old Widget if it exists
+		if (OldContentWidget != nullptr)
+		{
+			Switcher->RemoveChild(OldContentWidget);
+		}
+
+		// Add the new widget
+		Switcher->AddChild(ContentWidget);
+
+		// If this tab is selected we need to set it as the active widget
+		if (TabNameId == GetSelectedTabId())
+		{
+			Switcher->SetActiveWidget(ContentWidget);
+		}
+	}
+
+	return true;
+}
+
+void UCommonTabListWidgetBase::SetSelectionRequired(bool bSelectionRequired)
+{
+	if (TabButtonGroup)
+	{
+		TabButtonGroup->SetSelectionRequired(bSelectionRequired);
+	}
+}
+
 void UCommonTabListWidgetBase::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
 	// Create the button group once up-front
 	TabButtonGroup = NewObject<UCommonButtonGroupBase>(this);
-	TabButtonGroup->SetSelectionRequired(true);
+	SetSelectionRequired(true);
 	TabButtonGroup->OnSelectedButtonBaseChanged.AddDynamic(this, &UCommonTabListWidgetBase::HandleTabButtonSelected);
 }
 
@@ -403,7 +439,12 @@ void UCommonTabListWidgetBase::NativeDestruct()
 	SetListeningForInput(false);
 
 	ActiveTabID = NAME_None;
+
+	// Suppress selection when tearing down tabs
+	SetSelectionRequired(false);
 	RemoveAllTabs();
+	SetSelectionRequired(true);
+
 	if (TabButtonGroup)
 	{
 		TabButtonGroup->RemoveAll();
@@ -450,14 +491,10 @@ void UCommonTabListWidgetBase::HandleTabButtonSelected(UCommonButtonBase* Select
 		{
 			ActiveTabID = TabPair.Key;
 
-			if (TabInfo.ContentInstance || LinkedSwitcher.IsValid())
+			if (TabInfo.ContentInstance && LinkedSwitcher.IsValid())
 			{
-				if (ensureMsgf(TabInfo.ContentInstance, TEXT("A CommonTabListWidget tab button lacks a tab content widget to set its linked switcher to.")) &&
-					ensureMsgf(LinkedSwitcher.IsValid(), TEXT("A CommonTabListWidgetBase.has a registered tab with a content widget to switch to, but has no linked activatable widget switcher. Did you forget to call SetLinkedSwitcher to establish the association?")))
-				{
-					// There's already an instance of the widget to display, so go for it
-					LinkedSwitcher->SetActiveWidget(TabInfo.ContentInstance);
-				}
+				// There's already an instance of the widget to display, so go for it
+				LinkedSwitcher->SetActiveWidget(TabInfo.ContentInstance);
 			}
 
 			OnTabSelected.Broadcast(TabPair.Key);
@@ -474,7 +511,7 @@ void UCommonTabListWidgetBase::HandleNextTabAction()
 {
 	if (ensure(TabButtonGroup))
 	{
-		TabButtonGroup->SelectNextButton();
+		TabButtonGroup->SelectNextButton(bShouldWrapNavigation);
 	}
 }
 
@@ -487,7 +524,7 @@ void UCommonTabListWidgetBase::HandlePreviousTabAction()
 {
 	if (ensure(TabButtonGroup))
 	{
-		TabButtonGroup->SelectPreviousButton();
+		TabButtonGroup->SelectPreviousButton(bShouldWrapNavigation);
 	}
 }
 
@@ -500,37 +537,46 @@ bool UCommonTabListWidgetBase::DeferredRebuildTabList(float DeltaTime)
 
 void UCommonTabListWidgetBase::RebuildTabList()
 {
+	// Mark that we're currently rebuilding the tab list
 	bIsRebuildingList = true;
 
-	// Copy the registered tabs (as we are about to clear them) and sort by TabIndex.
-	TMap<FName, FCommonRegisteredTabInfo> SortedRegisteredTabsByID = RegisteredTabsByID;
-	SortedRegisteredTabsByID.ValueSort([](const FCommonRegisteredTabInfo& TabInfoA, const FCommonRegisteredTabInfo& TabInfoB)
-		{
-			return (TabInfoA.TabIndex < TabInfoB.TabIndex);
-		});
+	// Cache the registered tabs, as we are about to clear them with RemoveAllTabs()
+	TMap<FName, FCommonRegisteredTabInfo> CachedRegisteredTabsByID = RegisteredTabsByID;
 
 	// Keep track of the current ActiveTabID so we can restore it after the list is rebuilt.
-	const FName CurrentActiveTabID = ActiveTabID;
+	const FName CachedActiveTabID = ActiveTabID;
 
 	// Disable selection required temporarily so we can deselect everything, rebuild the list, then select the tab we want.
-	TabButtonGroup->SetSelectionRequired(false);
+	SetSelectionRequired(false);
 	TabButtonGroup->DeselectAll();
+
+	// Clear all tabs, releasing their widgets back to the widget pool
 	RemoveAllTabs();
 
-	RegisteredTabsByID = SortedRegisteredTabsByID;
-
-	for (TPair<FName, FCommonRegisteredTabInfo>& Pair : RegisteredTabsByID)
+	// Re-Register tabs using CachedRegisteredTabsByID
+	for (const TPair<FName, FCommonRegisteredTabInfo>& Pair : CachedRegisteredTabsByID)
 	{
-		TabButtonGroup->AddWidget(Pair.Value.TabButton);
-		HandleTabCreation(Pair.Key, Pair.Value.TabButton);
+		const FName& TabID = Pair.Key;
+		const FCommonRegisteredTabInfo& TabInfo = Pair.Value;
+		RegisterTab(
+			TabID, 
+			TabInfo.TabButtonClass, 
+			TabInfo.ContentInstance, 
+			TabInfo.TabIndex
+		);
 	}
 
+	// Done rebuilding our tab list
 	bIsRebuildingList = false;
 
+	// re-select the previously active tab
 	constexpr bool bSuppressClickFeedback = true;
-	SelectTabByID(CurrentActiveTabID, bSuppressClickFeedback);
+	SelectTabByID(CachedActiveTabID, bSuppressClickFeedback);
 
-	TabButtonGroup->SetSelectionRequired(true);
+	// Turn back on selection requirement
+	SetSelectionRequired(true);
+	
+	// Broadcast our rebuilt delegate
 	OnTabListRebuilt.Broadcast();
 }
 

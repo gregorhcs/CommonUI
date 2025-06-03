@@ -9,7 +9,6 @@
 #include "Engine/StreamableManager.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "ICommonUIModule.h"
@@ -39,6 +38,10 @@ void SLoadGuard::Construct(const FArguments& InArgs)
 			StyleCDO->ToTextBlockStyle(TextBlockStyle);
 		}
 	}
+
+	OnLoadingStateChanged = InArgs._OnLoadingStateChanged;
+
+	TSharedRef<SWidget> Throbber = InArgs._Throbber.IsValid() ? InArgs._Throbber.ToSharedRef() : SNew(SImage).Image(&ICommonUIModule::GetSettings().GetDefaultThrobberBrush());
 
 	ChildSlot
 	[
@@ -75,13 +78,13 @@ void SLoadGuard::Construct(const FArguments& InArgs)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
+					.Expose(ThrobberSlot)
 					.AutoWidth()
 					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
 					.Padding(0.f, 0.f, InArgs._GuardText.IsEmpty() ? 0.f : 18.f, 0.f)
 					[
-						SNew(SImage)
-						.Image(&ICommonUIModule::GetSettings().GetDefaultThrobberBrush())
+						Throbber
 					]
 
 					+ SHorizontalBox::Slot()
@@ -125,6 +128,14 @@ void SLoadGuard::SetContent(const TSharedRef<SWidget>& InContent)
 void SLoadGuard::SetThrobberHAlign(EHorizontalAlignment InHAlign)
 {
 	GuardBorder->SetHAlign(InHAlign);
+}
+
+void SLoadGuard::SetThrobber(const TSharedPtr<SWidget>& InThrobber)
+{
+	if (ThrobberSlot)
+	{
+		ThrobberSlot->AttachWidget(InThrobber.IsValid() ? InThrobber.ToSharedRef() : SNew(SImage).Image(&ICommonUIModule::GetSettings().GetDefaultThrobberBrush()));
+	}
 }
 
 void SLoadGuard::SetGuardText(const FText& InText)
@@ -278,9 +289,9 @@ UCommonLoadGuard::UCommonLoadGuard(const FObjectInitializer& Initializer)
 {
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 
-	// Default to not showing the loading BG brush - it's an opt-in kind of thing
+	// Default to not showing the loading BG or throbber brushes - it's an opt-in kind of thing
 	LoadingBackgroundBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
-
+	LoadingThrobberBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
 }
 
 void UCommonLoadGuard::ReleaseSlateResources(bool bReleaseChildren)
@@ -353,7 +364,6 @@ void UCommonLoadGuard::PostLoad()
 	}
 
 #if WITH_EDITOR
-
 	// Needed for backwards compatibility of old style updating
 	if (!TextStyle && !bStyleNoLongerNeedsConversion && !IsRunningDedicatedServer())
 	{
@@ -372,6 +382,7 @@ TSharedRef<SWidget> UCommonLoadGuard::RebuildWidget()
 		.GuardText(LoadingText)
 		.GuardTextStyle(TextStyle)
 		.GuardBackgroundBrush(&LoadingBackgroundBrush)
+		.Throbber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr))
 		.ThrobberHAlign(ThrobberAlignment)
 		.OnLoadingStateChanged_UObject(this, &UCommonLoadGuard::HandleLoadingStateChanged);
 
@@ -395,7 +406,9 @@ void UCommonLoadGuard::SynchronizeProperties()
 			StyleCDO->ToTextBlockStyle(GuardTextStyle);
 			MyLoadGuard->SetGuardTextStyle(GuardTextStyle);
 		}
+
 		MyLoadGuard->SetGuardText(LoadingText);
+		MyLoadGuard->SetThrobber(LoadingThrobberBrush.DrawAs != ESlateBrushDrawType::NoDrawType ? SNew(SImage).Image(&LoadingThrobberBrush) : TSharedPtr<SWidget>(nullptr));
 		MyLoadGuard->SetThrobberHAlign(ThrobberAlignment);
 		MyLoadGuard->SetGuardBackgroundBrush(&LoadingBackgroundBrush);
 

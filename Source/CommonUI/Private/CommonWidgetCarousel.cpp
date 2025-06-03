@@ -207,8 +207,10 @@ void UCommonWidgetCarousel::OnDescendantSelectedByDesigner(UWidget* DescendantWi
 	if ( SelectedChild )
 	{
 		int32 OverrideIndex = GetChildIndex(SelectedChild);
-		if ( OverrideIndex != -1 && MyCommonWidgetCarousel.IsValid() )
+		if ( OverrideIndex != INDEX_NONE && MyCommonWidgetCarousel.IsValid() )
 		{
+			// Need to cancel transition if it's active to ensure the selected widget actually displays if there's a transition in progress
+			MyCommonWidgetCarousel->ResetTransition();
 			MyCommonWidgetCarousel->SetActiveWidgetIndex(OverrideIndex);
 		}
 	}
@@ -216,6 +218,12 @@ void UCommonWidgetCarousel::OnDescendantSelectedByDesigner(UWidget* DescendantWi
 
 void UCommonWidgetCarousel::OnDescendantDeselectedByDesigner(UWidget* DescendantWidget)
 {
+	if (MyCommonWidgetCarousel.IsValid())
+	{
+		// Need to cancel transition if it's active to ensure the active widget actually displays if there's a transition in progress
+		MyCommonWidgetCarousel->ResetTransition();
+	}
+
 	SetActiveWidgetIndex(ActiveWidgetIndex);
 }
 

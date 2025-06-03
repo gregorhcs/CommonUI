@@ -6,48 +6,50 @@
 
 #include "CommonVisibilitySwitcher.generated.h"
 
+#define UE_API COMMONUI_API
+
 /**
  * Basic switcher that toggles visibility on its children to only show one widget at a time. Activates visible widget if possible.
  */
-UCLASS(meta = (DisableNativeTick))
-class COMMONUI_API UCommonVisibilitySwitcher : public UOverlay
+UCLASS(MinimalAPI, meta = (DisableNativeTick))
+class UCommonVisibilitySwitcher : public UOverlay
 {
 	GENERATED_BODY()
 
 public:
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void SetActiveWidgetIndex(int32 Index);
+	UE_API void SetActiveWidgetIndex(int32 Index);
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
 	int32 GetActiveWidgetIndex() const { return ActiveWidgetIndex; }
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	UWidget* GetActiveWidget() const;
+	UE_API UWidget* GetActiveWidget() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void SetActiveWidget(const UWidget* Widget);
+	UE_API void SetActiveWidget(const UWidget* Widget);
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void IncrementActiveWidgetIndex(bool bAllowWrapping = true);
+	UE_API void IncrementActiveWidgetIndex(bool bAllowWrapping = true);
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void DecrementActiveWidgetIndex(bool bAllowWrapping = true);
+	UE_API void DecrementActiveWidgetIndex(bool bAllowWrapping = true);
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void ActivateVisibleSlot();
+	UE_API void ActivateVisibleSlot();
 
 	UFUNCTION(BlueprintCallable, Category = CommonVisibilitySwitcher)
-	void DeactivateVisibleSlot();
+	UE_API void DeactivateVisibleSlot();
 
 	UFUNCTION(BlueprintPure, Category = CommonVisibilitySwitcher)
 	bool IsCurrentlySwitching() const { return bCurrentlySwitching; }
 
-	UWidget* GetWidgetAtIndex(int32 Index) const;
+	UE_API UWidget* GetWidgetAtIndex(int32 Index) const;
 
-	virtual void SynchronizeProperties() override;
+	UE_API virtual void SynchronizeProperties() override;
 
-	void MoveChild(int32 CurrentIdx, int32 NewIdx);
+	UE_API void MoveChild(int32 CurrentIdx, int32 NewIdx);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnActiveWidgetIndexChanged, int32)
 	FOnActiveWidgetIndexChanged& OnActiveWidgetIndexChanged() const { return OnActiveWidgetIndexChangedEvent; }
@@ -55,15 +57,15 @@ public:
 #if WITH_EDITOR
 public:
 
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnDescendantSelectedByDesigner(UWidget* DescendantWidget) override;
-	virtual void OnDescendantDeselectedByDesigner(UWidget* DescendantWidget) override;
+	UE_API virtual const FText GetPaletteCategory() override;
+	UE_API virtual void OnDescendantSelectedByDesigner(UWidget* DescendantWidget) override;
+	UE_API virtual void OnDescendantDeselectedByDesigner(UWidget* DescendantWidget) override;
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 protected:
 
-	virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const override;
+	UE_API virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const override;
 
 private:
 
@@ -72,15 +74,15 @@ private:
 
 protected:
 
-	virtual void OnWidgetRebuilt() override;
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* InSlot) override;
-	virtual void OnSlotRemoved(UPanelSlot* InSlot) override;
+	UE_API virtual void OnWidgetRebuilt() override;
+	UE_API virtual UClass* GetSlotClass() const override;
+	UE_API virtual void OnSlotAdded(UPanelSlot* InSlot) override;
+	UE_API virtual void OnSlotRemoved(UPanelSlot* InSlot) override;
 
 protected:
 
-	virtual void SetActiveWidgetIndex_Internal(int32 Index, bool bBroadcastChange = true);
-	void ResetSlotVisibilities();
+	UE_API virtual void SetActiveWidgetIndex_Internal(int32 Index, bool bBroadcastChange = true);
+	UE_API void ResetSlotVisibilities();
 
 	UPROPERTY(EditAnywhere, Category = CommonVisibilitySwitcher)
 	ESlateVisibility ShownVisibility = ESlateVisibility::SelfHitTestInvisible;
@@ -100,3 +102,5 @@ protected:
 
 	mutable FOnActiveWidgetIndexChanged OnActiveWidgetIndexChangedEvent;
 };
+
+#undef UE_API

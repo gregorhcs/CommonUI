@@ -5,6 +5,8 @@
 #include "Components/Widget.h"
 #include "CommonWidgetCarouselNavBar.generated.h"
 
+#define UE_API COMMONUI_API
+
 class UCommonWidgetCarousel;
 class UCommonButtonBase;
 class UCommonButtonGroupBase;
@@ -13,8 +15,8 @@ class SHorizontalBox;
 /**
  * A Navigation control for a Carousel
  */
-UCLASS(Blueprintable)
-class COMMONUI_API UCommonWidgetCarouselNavBar : public UWidget
+UCLASS(MinimalAPI, Blueprintable)
+class UCommonWidgetCarouselNavBar : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,29 +33,29 @@ public:
 	 * @param CommonCarousel The carousel that this nav bar should be associated with and manipulate
 	 */
 	UFUNCTION(BlueprintCallable, Category = "CarouselNavBar")
-	void SetLinkedCarousel(UCommonWidgetCarousel* CommonCarousel);
+	UE_API void SetLinkedCarousel(UCommonWidgetCarousel* CommonCarousel);
 
 
 	// UWidget interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UE_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UWidget interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UE_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	UFUNCTION()
-	void HandlePageChanged(UCommonWidgetCarousel* CommonCarousel, int32 PageIndex);
+	UE_API void HandlePageChanged(UCommonWidgetCarousel* CommonCarousel, int32 PageIndex);
 
 	UFUNCTION()
-	void HandleButtonClicked(UCommonButtonBase* AssociatedButton, int32 ButtonIndex);
+	UE_API void HandleButtonClicked(UCommonButtonBase* AssociatedButton, int32 ButtonIndex);
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UE_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	void RebuildButtons();
+	UE_API void RebuildButtons();
 
 protected:
 	TSharedPtr<SHorizontalBox> MyContainer;
@@ -68,6 +70,4 @@ protected:
 	TArray<TObjectPtr<UCommonButtonBase>> Buttons;
 };
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Components/PanelWidget.h"
-#endif
+#undef UE_API
