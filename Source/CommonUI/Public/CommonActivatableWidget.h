@@ -81,6 +81,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
 	UE_API void ClearFocusRestorationTarget();
 
+	/**
+	 * Ask for focus to be re-set to our current DesiredFocusTarget,
+	 * but only if our node is currently the leaf-most active node (no stealing!).
+	 * This is useful for complex cases like: the buttons animate in from off-screen,
+	 * or the buttons are deeply nested in a multi-switcher hierarchy and it would be burdensome
+	 * to wrap each element in a CommonActivatableWidget.
+	 */
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
+	UE_API void RequestRefreshFocus();
+
 	FSimpleMulticastDelegate& OnActivated() const { return OnActivatedEvent; }
 	FSimpleMulticastDelegate& OnDeactivated() const { return OnDeactivatedEvent; }
 
@@ -153,16 +163,6 @@ protected:
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "Get Desired Input Config"))
 	UE_API FUIInputConfig BP_GetDesiredInputConfig() const;
-
-	/**
-	 * Ask for focus to be re-set to our current DesiredFocusTarget,
-	 * but only if our node is currently the leaf-most active node (no stealing!).
-	 * This is useful for complex cases like: the buttons animate in from off-screen,
-	 * or the buttons are deeply nested in a multi-switcher hierarchy and it would be burdensome
-	 * to wrap each element in a CommonActivatableWidget.
-	 */
-	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
-	UE_API void RequestRefreshFocus();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "On Activated"))
 	UE_API void BP_OnActivated();

@@ -194,20 +194,6 @@ bool SCommonButton::IsInteractable() const
 	return bIsButtonEnabled && bIsInteractionEnabled;
 }
 
-/** Overridden to fire delegate for external listener */
-FReply SCommonButton::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
-{
-	FReply ReturnReply = SButton::OnFocusReceived(MyGeometry, InFocusEvent);
-	OnReceivedFocus.ExecuteIfBound();
-
-	return ReturnReply;
-}
-
-void SCommonButton::OnFocusLost(const FFocusEvent& InFocusEvent)
-{
-	OnLostFocus.ExecuteIfBound();
-}
-
 int32 SCommonButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	bool bEnabled = bParentEnabled && bIsButtonEnabled;

@@ -57,7 +57,7 @@ enum class ECommonSwitcherTransitionFallbackStrategy : uint8
 	Last
 };
 
-static FORCEINLINE ECurveEaseFunction TransitionCurveToCurveEaseFunction(ETransitionCurve CurveType)
+static inline ECurveEaseFunction TransitionCurveToCurveEaseFunction(ETransitionCurve CurveType)
 {
 	switch (CurveType)
 	{

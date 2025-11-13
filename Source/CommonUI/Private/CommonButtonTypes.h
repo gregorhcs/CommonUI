@@ -21,6 +21,11 @@ public:
 		: _Content()
 		, _HAlign(HAlign_Fill)
 		, _VAlign(VAlign_Fill)
+		, _OnSlateButtonDragDetected()
+		, _OnSlateButtonDragEnter()
+		, _OnSlateButtonDragLeave()
+		, _OnSlateButtonDragOver()
+		, _OnSlateButtonDrop()
 		, _ClickMethod(EButtonClickMethod::DownAndUp)
 		, _TouchMethod(EButtonTouchMethod::DownAndUp)
 		, _PressMethod(EButtonPressMethod::DownAndUp)
@@ -31,6 +36,11 @@ public:
 		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
 		SLATE_ARGUMENT(EHorizontalAlignment, HAlign)
 		SLATE_ARGUMENT(EVerticalAlignment, VAlign)
+		SLATE_EVENT(FOnDragDetected, OnSlateButtonDragDetected)
+		SLATE_EVENT(FOnDragEnter, OnSlateButtonDragEnter)
+		SLATE_EVENT(FOnDragLeave, OnSlateButtonDragLeave)
+		SLATE_EVENT(FOnDragOver, OnSlateButtonDragOver)
+		SLATE_EVENT(FOnDrop, OnSlateButtonDrop)
 		SLATE_EVENT(FOnClicked, OnClicked)
 		SLATE_EVENT(FOnClicked, OnDoubleClicked)
 		SLATE_EVENT(FSimpleDelegate, OnPressed)
@@ -55,6 +65,11 @@ public:
 			.ButtonStyle(InArgs._ButtonStyle)
 			.HAlign(InArgs._HAlign)
 			.VAlign(InArgs._VAlign)
+			.OnSlateButtonDragDetected(InArgs._OnSlateButtonDragDetected)
+			.OnSlateButtonDragOver(InArgs._OnSlateButtonDragOver)
+			.OnSlateButtonDragEnter(InArgs._OnSlateButtonDragEnter)
+			.OnSlateButtonDragLeave(InArgs._OnSlateButtonDragLeave)
+			.OnSlateButtonDrop(InArgs._OnSlateButtonDrop)
 			.ClickMethod(InArgs._ClickMethod)
 			.TouchMethod(InArgs._TouchMethod)
 			.PressMethod(InArgs._PressMethod)
@@ -62,6 +77,8 @@ public:
 			.OnPressed(InArgs._OnPressed)
 			.OnReleased(InArgs._OnReleased)
 			.IsFocusable(InArgs._IsFocusable)
+			.OnReceivedFocus(InArgs._OnReceivedFocus)
+			.OnLostFocus(InArgs._OnLostFocus)
 			.Content()
 			[
 				InArgs._Content.Widget
@@ -71,8 +88,6 @@ public:
 		// Set the hover state to indicate that we want to override the default behavior
 		SetHover(false);
 
-		OnReceivedFocus = InArgs._OnReceivedFocus;
-		OnLostFocus = InArgs._OnLostFocus;
 		bIsButtonEnabled = InArgs._IsButtonEnabled;
 		bIsInteractionEnabled = InArgs._IsInteractionEnabled;
 		bHovered = false;
@@ -102,11 +117,6 @@ public:
 
 	UE_API bool IsInteractable() const;
 
-	/** Overridden to fire delegate for external listener */
-	UE_API virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent);
-
-	UE_API virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
-
 	UE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
@@ -115,12 +125,6 @@ protected:
 
 private:
 	FOnClicked OnDoubleClicked;
-
-	/** Delegate fired whenever focus is received */
-	FSimpleDelegate OnReceivedFocus;
-
-	/** Delegate fired whenever focus is lost */
-	FSimpleDelegate OnLostFocus;
 
 	/** True if the button is enabled */
 	bool bIsButtonEnabled;

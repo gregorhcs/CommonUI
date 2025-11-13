@@ -11,6 +11,7 @@
 #include "CommonInputModeTypes.h"
 #include "CommonInputBaseTypes.h"
 #include "Containers/Ticker.h"
+#include "Framework/SlateDelegates.h"
 #include "CommonButtonBase.generated.h"
 
 class UCommonButtonBase;
@@ -266,12 +267,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Common Button Internal|Event")
 	FOnButtonClickedEvent OnDoubleClicked;
 
-	/** Called when the button receives focus */
-	FSimpleDelegate OnReceivedFocus;
-
-	/** Called when the button loses focus */
-	FSimpleDelegate OnLostFocus;
-
 protected:
 	// UWidget interface
 	COMMONUI_API virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -282,12 +277,11 @@ protected:
 	COMMONUI_API virtual void SlateHandlePressedOverride();
 	COMMONUI_API virtual void SlateHandleReleasedOverride();
 	COMMONUI_API virtual FReply SlateHandleDoubleClicked();
-
-	/** Called when internal slate button receives focus; Fires OnReceivedFocus */
-	COMMONUI_API void SlateHandleOnReceivedFocus();
-
-	/** Called when internal slate button loses focus; Fires OnLostFocus */
-	COMMONUI_API void SlateHandleOnLostFocus();
+	COMMONUI_API virtual FReply SlateHandleDragDetectedOverride(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
+	COMMONUI_API virtual void SlateHandleDragEnterOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+	COMMONUI_API virtual void SlateHandleDragLeaveOverride(const FDragDropEvent& DragDropEvent);
+	COMMONUI_API virtual FReply SlateHandleDragOverOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+	COMMONUI_API virtual FReply SlateHandleDropOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
 
 	/** The minimum width of the button */
 	UPROPERTY()
@@ -320,9 +314,10 @@ protected:
 	TSharedPtr<class SCommonButton> MyCommonButton;
 };
 
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCommonSelectedStateChangedBase, class UCommonButtonBase*, Button, bool, Selected);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCommonButtonBaseClicked, class UCommonButtonBase*, Button);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnButtonBaseOperationDynamic, class UCommonButtonBase*, Button, UDragDropOperation*, Operation);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnButtonBaseGeoOperationDynamic, class UCommonButtonBase*, Button, const FGeometry&, MyGeometry, UDragDropOperation*, Operation);
 
 /**
  * Button that disables itself when not active. Also updates actions for CommonActionWidget if bound to display platform-specific icons.
@@ -425,7 +420,7 @@ public:
 
 	/** Sets the style of this button, rebuilds the internal styling */
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
-	COMMONUI_API void SetStyle(TSubclassOf<UCommonButtonStyle> InStyle = nullptr);
+	COMMONUI_API void SetStyle(TSubclassOf<UCommonButtonStyle> InStyle = {});
 
 	/** @Returns Current button style*/
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Getters")
@@ -489,8 +484,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Common Button|Getters")
 	float GetRequiredHoldTime() const { return HoldTime; };
 
+	/** Updates the bAllowDragDrop flag  on the RootButton */
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
+	COMMONUI_API void SetAllowDragDrop(bool bInAllowDragDrop);
+
 	/** Updates the bIsFocusable flag */
-	UFUNCTION(BlueprintCallable, Category = "Common Button|Getters")
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
 	COMMONUI_API void SetIsFocusable(bool bInIsFocusable);
 
 	/** Gets the bIsFocusable flag */
@@ -542,6 +541,12 @@ public:
 	FCommonButtonEvent& OnFocusLost() const { return OnFocusLostEvent; }
 	FCommonButtonEvent& OnLockClicked() const { return OnLockClickedEvent; }
 	FCommonButtonEvent& OnLockDoubleClicked() const { return OnLockDoubleClickedEvent; }
+
+	FOnDragDetected& OnCommonButtonDragDetected() const { return OnDragDetectedEvent; }
+	FOnDragEnter& OnCommonButtonDragEnter() const { return OnDragEnterEvent; }
+	FOnDragLeave& OnCommonButtonDragLeave() const { return OnDragLeaveEvent; }
+	FOnDragOver& OnCommonButtonDragOver() const { return OnDragOverEvent; }
+	FOnDrop& OnCommonButtonDrop() const { return OnDropEvent; }
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category= "Common Button")
 	FWidgetEventField ClickEvent;
@@ -633,6 +638,21 @@ protected:
 	UFUNCTION()
 	COMMONUI_API virtual void HandleButtonReleased();
 
+	/** Helper function registered to the underlying button when drag is detected */
+	COMMONUI_API virtual FReply HandleButtonDragDetected(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
+
+	/** Helper function registered to the underlying button when dragged widget enters */
+	COMMONUI_API virtual void HandleButtonDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+
+	/** Helper function registered to the underlying button when dragged widget leaves */
+	COMMONUI_API virtual void HandleButtonDragLeave(const FDragDropEvent& DragDropEvent);
+
+	/** Helper function registered to the underlying button when dragged over */
+	COMMONUI_API virtual FReply HandleButtonDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+
+	/** Helper function registered to the underlying button when dropped during a drag drop operation */
+	COMMONUI_API virtual FReply HandleButtonDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Selected"))
 	COMMONUI_API void BP_OnSelected();
 	COMMONUI_API virtual void NativeOnSelected(bool bBroadcast);
@@ -686,6 +706,16 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Released"))
 	COMMONUI_API void BP_OnReleased();
 	COMMONUI_API virtual void NativeOnReleased();
+
+	COMMONUI_API virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+	COMMONUI_API virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	
+	COMMONUI_API virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+	COMMONUI_API virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+	COMMONUI_API virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Enabled"))
 	COMMONUI_API void BP_OnEnabled();
@@ -983,6 +1013,21 @@ protected:
 	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Unselected"))
 	FCommonButtonBaseClicked OnButtonBaseUnselected;
 
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Drag Detected"))
+	FOnButtonBaseGeoOperationDynamic OnButtonBaseDragDetected;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Drag Enter"))
+	FOnButtonBaseGeoOperationDynamic OnButtonBaseDragEnter;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Drag Leave"))
+	FOnButtonBaseOperationDynamic OnButtonBaseDragLeave;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Drag Over"))
+	FOnButtonBaseGeoOperationDynamic OnButtonBaseDragOver;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events", meta = (AllowPrivateAccess = true, DisplayName = "On Drag Drop"))
+	FOnButtonBaseGeoOperationDynamic OnButtonBaseDrop;
+
 	FUIActionBindingHandle TriggeringBindingHandle;
 	
 	/** Press and hold time in seconds */
@@ -1080,6 +1125,11 @@ private:
 	mutable FCommonButtonEvent OnFocusLostEvent;
 	mutable FCommonButtonEvent OnLockClickedEvent;
 	mutable FCommonButtonEvent OnLockDoubleClickedEvent;
+	mutable FOnDragDetected OnDragDetectedEvent;
+	mutable FOnDragEnter OnDragEnterEvent;
+	mutable FOnDragLeave OnDragLeaveEvent;
+	mutable FOnDragOver OnDragOverEvent;
+	mutable FOnDrop OnDropEvent;
 
 	mutable FOnIsSelectedChanged OnIsSelectedChangedEvent;
 

@@ -186,6 +186,8 @@ private:
 	
 	UE_API void HandleActivatableWidgetRebuilding(UCommonActivatableWidget& RebuildingWidget);
 	UE_API void ProcessRebuiltWidgets();
+	UE_API void RefreshRootNodes();
+	UE_API void RefreshBoundActions();
 	UE_API void AssembleTreeRecursive(const FActivatableTreeNodeRef& CurNode, TMap<UCommonActivatableWidget*, TArray<UCommonActivatableWidget*>>& WidgetsByDirectParent);
 
 	UE_API void HandleRootWidgetSlateReleased(TWeakPtr<FActivatableTreeRoot> WeakRoot);

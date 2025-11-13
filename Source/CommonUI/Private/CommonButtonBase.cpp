@@ -24,6 +24,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputAction.h"
 #include "Sound/SoundBase.h"
+#include "Slate/UMGDragDropOp.h"
 #include "Styling/UMGCoreStyle.h"
 #include "CommonUITypes.h"
 #include "CommonUIPrivate.h"
@@ -276,6 +277,11 @@ TSharedRef<SWidget> UCommonButtonInternalBase::RebuildWidget()
 		.OnDoubleClicked(BIND_UOBJECT_DELEGATE(FOnClicked, SlateHandleDoubleClicked))
 		.OnPressed(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandlePressedOverride))
 		.OnReleased(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleReleasedOverride))
+		.OnSlateButtonDragDetected(BIND_UOBJECT_DELEGATE(FOnDragDetected, SlateHandleDragDetectedOverride))
+		.OnSlateButtonDragEnter(BIND_UOBJECT_DELEGATE(FOnDragEnter, SlateHandleDragEnterOverride))
+		.OnSlateButtonDragLeave(BIND_UOBJECT_DELEGATE(FOnDragLeave, SlateHandleDragLeaveOverride))
+		.OnSlateButtonDragOver(BIND_UOBJECT_DELEGATE(FOnDragOver, SlateHandleDragOverOverride))
+		.OnSlateButtonDrop(BIND_UOBJECT_DELEGATE(FOnDrop, SlateHandleDrop))
 		.ButtonStyle(&GetStyle())
 		.ClickMethod(GetClickMethod())
 		.TouchMethod(GetTouchMethod())
@@ -343,15 +349,46 @@ FReply UCommonButtonInternalBase::SlateHandleDoubleClicked()
 	return Reply;
 }
 
-void UCommonButtonInternalBase::SlateHandleOnReceivedFocus()
+/** Begin Drag Drop
+*	These overrides are currently identical to the slate handlers found in UButton.  Adding these stubs for ease of access/ override functionality
+*/
+FReply UCommonButtonInternalBase::SlateHandleDragDetectedOverride(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
-	OnReceivedFocus.ExecuteIfBound();
+	if (OnButtonDragDetected.IsBound())
+	{
+		return OnButtonDragDetected.Execute(MyGeometry, PointerEvent);
+	}
+	return FReply::Unhandled();
 }
 
-void UCommonButtonInternalBase::SlateHandleOnLostFocus()
+void UCommonButtonInternalBase::SlateHandleDragEnterOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	OnLostFocus.ExecuteIfBound();
+	OnButtonDragEnter.ExecuteIfBound(MyGeometry, DragDropEvent);
 }
+
+void UCommonButtonInternalBase::SlateHandleDragLeaveOverride(const FDragDropEvent& DragDropEvent)
+{
+	OnButtonDragLeave.ExecuteIfBound(DragDropEvent);
+}
+
+FReply UCommonButtonInternalBase::SlateHandleDragOverOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (OnButtonDragOver.IsBound())
+	{
+		return OnButtonDragOver.Execute(MyGeometry, DragDropEvent);
+	}
+	return FReply::Unhandled();
+}
+
+FReply UCommonButtonInternalBase::SlateHandleDropOverride(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (OnButtonDrop.IsBound())
+	{
+		return OnButtonDrop.Execute(MyGeometry, DragDropEvent);
+	}
+	return FReply::Unhandled();
+}
+//	End Drag Drop
 
 //////////////////////////////////////////////////////////////////////////
 // UCommonButtonBase
@@ -467,6 +504,11 @@ bool UCommonButtonBase::Initialize()
 			RootButton->OnLostFocus.BindUObject(this, &UCommonButtonBase::HandleFocusLost);
 			RootButton->OnPressed.AddUniqueDynamic(this, &UCommonButtonBase::HandleButtonPressed);
 			RootButton->OnReleased.AddUniqueDynamic(this, &UCommonButtonBase::HandleButtonReleased);
+			RootButton->OnButtonDragDetected.BindUObject(this, &UCommonButtonBase::HandleButtonDragDetected);
+			RootButton->OnButtonDragEnter.BindUObject(this, &UCommonButtonBase::HandleButtonDragEnter);
+			RootButton->OnButtonDragLeave.BindUObject(this, &UCommonButtonBase::HandleButtonDragLeave);
+			RootButton->OnButtonDragOver.BindUObject(this, &UCommonButtonBase::HandleButtonDragOver);
+			RootButton->OnButtonDrop.BindUObject(this, &UCommonButtonBase::HandleButtonDrop);
 		}
 	}
 
@@ -501,12 +543,12 @@ void UCommonButtonBase::NativeDestruct()
 
 	if (HoldTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+		FTSTicker::RemoveTicker(HoldTickerHandle);
 		HoldTickerHandle = nullptr;
 	}
 	if (HoldProgressRollbackTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 		HoldProgressRollbackTickerHandle = nullptr;
 	}
 }
@@ -917,7 +959,7 @@ bool UCommonButtonBase::NativeOnHoldProgressRollback(float DeltaTime)
 		NativeOnActionProgress(CurrentHoldProgress);
 		if (CurrentHoldProgress <= 0.f)
 		{
-			FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+			FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 			HoldProgressRollbackTickerHandle = nullptr;
 
 			return false;
@@ -934,12 +976,12 @@ void UCommonButtonBase::HoldReset()
 {
 	if (HoldTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+		FTSTicker::RemoveTicker(HoldTickerHandle);
 		HoldTickerHandle = nullptr;
 	}
 	if (HoldProgressRollbackTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 		HoldProgressRollbackTickerHandle = nullptr;
 	}
 	CurrentHoldTime = 0.f;
@@ -1464,22 +1506,30 @@ void UCommonButtonBase::HandleFocusReceived()
 		SetIsSelected(true, false);
 	}
 	OnFocusReceived().Broadcast();
-	BP_OnFocusReceived();
 
-	if (OnButtonBaseFocused.IsBound())
+	if (CanSafelyRouteCall())
 	{
-		OnButtonBaseFocused.Broadcast(this);
+		BP_OnFocusReceived();
+
+		if (OnButtonBaseFocused.IsBound())
+		{
+			OnButtonBaseFocused.Broadcast(this);
+		}
 	}
 }
 
 void UCommonButtonBase::HandleFocusLost()
 {
 	OnFocusLost().Broadcast();
-	BP_OnFocusLost();
 
-	if (OnButtonBaseUnfocused.IsBound())
+	if (CanSafelyRouteCall())
 	{
-		OnButtonBaseUnfocused.Broadcast(this);
+		BP_OnFocusLost();
+
+		if (OnButtonBaseUnfocused.IsBound())
+		{
+			OnButtonBaseUnfocused.Broadcast(this);
+		}
 	}
 }
 
@@ -1500,7 +1550,7 @@ void UCommonButtonBase::HandleButtonPressed()
 		HoldTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonButtonBase::NativeOnHoldProgress));
 		if (HoldProgressRollbackTickerHandle.IsValid())
 		{
-			FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+			FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 			HoldProgressRollbackTickerHandle = nullptr;
 		}
 	}
@@ -1533,10 +1583,86 @@ void UCommonButtonBase::HandleButtonReleased()
 			// Begin hold progress rollback
 			HoldProgressRollbackTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonButtonBase::NativeOnHoldProgressRollback));
 
-			FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+			FTSTicker::RemoveTicker(HoldTickerHandle);
 			HoldTickerHandle = nullptr;
 		}
 	}
+}
+
+COMMONUI_API FReply UCommonButtonBase::HandleButtonDragDetected(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
+{
+	//	This seems strange... If NativeOnDragDetected has been overridden and creates a valid operation, should I reply Handled?
+	UDragDropOperation* Operation = nullptr;
+	NativeOnDragDetected(MyGeometry, PointerEvent, Operation);
+
+	if (OnCommonButtonDragDetected().IsBound())
+	{
+		return OnCommonButtonDragDetected().Execute(MyGeometry, PointerEvent);
+	}
+
+	return FReply::Unhandled();
+}
+
+COMMONUI_API void UCommonButtonBase::HandleButtonDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FUMGDragDropOp> NativeOp = DragDropEvent.GetOperationAs<FUMGDragDropOp>();
+	
+	if (NativeOp.IsValid())
+	{
+		NativeOnDragEnter(MyGeometry, DragDropEvent, NativeOp->GetOperation());
+	}
+
+	OnCommonButtonDragEnter().ExecuteIfBound(MyGeometry, DragDropEvent);
+}
+
+COMMONUI_API void UCommonButtonBase::HandleButtonDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FUMGDragDropOp> NativeOp = DragDropEvent.GetOperationAs<FUMGDragDropOp>();
+	
+	if (NativeOp.IsValid())
+	{
+		NativeOnDragLeave(DragDropEvent, NativeOp->GetOperation());
+	}
+
+	OnCommonButtonDragLeave().ExecuteIfBound(DragDropEvent);
+}
+
+COMMONUI_API FReply UCommonButtonBase::HandleButtonDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FUMGDragDropOp> NativeOp = DragDropEvent.GetOperationAs<FUMGDragDropOp>();
+	if (NativeOp.IsValid())
+	{
+		if (NativeOnDragOver(MyGeometry, DragDropEvent, NativeOp->GetOperation()))
+		{
+			return FReply::Handled();
+		}
+	}
+
+	if (OnCommonButtonDragOver().IsBound())
+	{
+		return OnCommonButtonDragOver().Execute(MyGeometry, DragDropEvent);
+	}
+
+	return FReply::Unhandled();
+}
+
+COMMONUI_API FReply UCommonButtonBase::HandleButtonDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FUMGDragDropOp> NativeOp = DragDropEvent.GetOperationAs<FUMGDragDropOp>();
+	if (NativeOp.IsValid())
+	{
+		if (NativeOnDrop(MyGeometry, DragDropEvent, NativeOp->GetOperation()))
+		{
+			return FReply::Handled();	
+		}
+	}
+
+	if (OnCommonButtonDrop().IsBound())
+	{
+		return OnCommonButtonDrop().Execute(MyGeometry, DragDropEvent);
+	}
+
+	return FReply::Unhandled();
 }
 
 FReply UCommonButtonBase::NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent)
@@ -1698,6 +1824,51 @@ void UCommonButtonBase::NativeOnReleased()
 	BP_OnReleased();
 	OnReleased().Broadcast();
 	BroadcastBinaryPostStateChange(UWidgetPressedStateRegistration::Bit, false);
+}
+
+void UCommonButtonBase::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	if (OnButtonBaseDragDetected.IsBound())
+	{
+		OnButtonBaseDragDetected.Broadcast(this, InGeometry, OutOperation);
+	}
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+}
+
+void UCommonButtonBase::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (OnButtonBaseDragEnter.IsBound())
+	{
+		OnButtonBaseDragEnter.Broadcast(this, InGeometry, InOperation);
+	}
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+}
+
+void UCommonButtonBase::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (OnButtonBaseDragLeave.IsBound())
+	{
+		OnButtonBaseDragLeave.Broadcast(this, InOperation);
+	}
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+}
+
+bool UCommonButtonBase::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (OnButtonBaseDragOver.IsBound())
+	{
+		OnButtonBaseDragOver.Broadcast(this,InGeometry, InOperation);
+	}
+	return Super::NativeOnDragOver(InGeometry, InDragDropEvent, InOperation);
+}
+
+bool UCommonButtonBase::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (OnButtonBaseDrop.IsBound())
+	{
+		OnButtonBaseDrop.Broadcast(this, InGeometry, InOperation);
+	}
+	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
 }
 
 void UCommonButtonBase::NativeOnEnabled()
@@ -2147,6 +2318,14 @@ void UCommonButtonBase::SetRequiresHold(bool bInRequiresHold)
 	if (bPrevRequiresHold != bRequiresHold)
 	{
 		BP_OnRequiresHoldChanged();
+	}
+}
+
+COMMONUI_API void UCommonButtonBase::SetAllowDragDrop(bool bInAllowDragDrop)
+{
+	if (RootButton.IsValid())
+	{
+		RootButton->SetAllowDragDrop(bInAllowDragDrop);
 	}
 }
 

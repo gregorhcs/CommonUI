@@ -78,10 +78,10 @@ protected:
 #endif	
 
 	UE_API void SetIsLoading(bool bIsLoading);
+	UE_API void ShowDefaultImage();
 
 private:
 	UE_API void HandleLoadGuardStateChanged(bool bIsLoading);
-	UE_API void ShowDefaultImage();
 
 	UE_API void SetBrushObjectInternal(UMaterialInterface* Material);
 	UE_API void SetBrushObjectInternal(UTexture* Texture, bool bMatchSize = false);

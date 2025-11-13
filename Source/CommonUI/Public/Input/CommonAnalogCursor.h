@@ -5,6 +5,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Framework/Application/AnalogCursor.h"
 #include "InputCoreTypes.h"
+#include "Input/Events.h"
 #include "Rendering/SlateRenderTransform.h"
 
 #define UE_API COMMONUI_API
@@ -57,6 +58,8 @@ public:
 
 	UE_API virtual bool ShouldVirtualAcceptSimulateMouseButton(const FKeyEvent& InKeyEvent, EInputEvent InputEvent) const;
 
+	UE_API void OnVirtualAcceptHoldCanceled();
+
 protected:
 	UE_API FCommonAnalogCursor(const UCommonUIActionRouterBase& InActionRouter);
 	UE_API virtual void Initialize();
@@ -105,6 +108,8 @@ private:
 
 	TWeakPtr<SWidget> LastCursorTarget;
 	FSlateRenderTransform LastCursorTargetTransform;
+
+	TOptional<FKeyEvent> ActiveKeyUpEvent;
 
 	float TimeUntilScrollUpdate = 0.f;
 	

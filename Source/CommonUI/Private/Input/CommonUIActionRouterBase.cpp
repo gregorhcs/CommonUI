@@ -240,7 +240,17 @@ FUIActionBindingHandle UCommonUIActionRouterBase::RegisterUIActionBinding(const 
 
 		if (OwnerNode)
 		{
-			OwnerNode->AddBinding(*FUIActionBinding::FindBinding(BindingHandle));
+			if (const TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
+			{
+				if (Binding->bIsPersistent)
+				{
+					PersistentActions->AddBinding(*Binding);
+				}
+				else
+				{
+					OwnerNode->AddBinding(*Binding);
+				}
+			}
 			
 			if (UCommonActivatableWidget* ActivatableWidget = OwnerNode->GetWidget())
 			{
@@ -349,7 +359,7 @@ void UCommonUIActionRouterBase::RegisterAnalogCursorTick()
 
 	if (bIsActivatableTreeEnabled)
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::RemoveTicker(TickHandle);
 		TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonUIActionRouterBase::Tick));
 	}
 }
@@ -377,7 +387,7 @@ void UCommonUIActionRouterBase::Deinitialize()
 #endif
 	}
 
-	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	FTSTicker::RemoveTicker(TickHandle);
 	SetActiveRoot(nullptr);
 	HeldKeys.Empty();
 }
@@ -575,7 +585,7 @@ ERouteUIInputResult UCommonUIActionRouterBase::ProcessInput(FKey Key, EInputEven
 		return bHandled;
 	};
 
-	const auto ProcessInputOnActionRouter = [&ProcessHoldInputFunc, &ProcessNormalInputFunc, InputEvent](const UCommonUIActionRouterBase& ActionRouter)
+	const auto ProcessInputOnActionRouter = [&ProcessHoldInputFunc, &ProcessNormalInputFunc, &Key, InputEvent](const UCommonUIActionRouterBase& ActionRouter)
 	{
 		EProcessHoldActionResult ProcessHoldResult = ProcessHoldInputFunc(ActionRouter);
 		if (ProcessHoldResult == EProcessHoldActionResult::Handled)
@@ -586,7 +596,17 @@ ERouteUIInputResult UCommonUIActionRouterBase::ProcessInput(FKey Key, EInputEven
 		if (ProcessHoldResult == EProcessHoldActionResult::GeneratePress)
 		{
 			// A hold action was in progress but quickly aborted, so we want to generate a press action now for any normal bindings that are interested
-			ProcessNormalInputFunc(ActionRouter, IE_Pressed);
+			if (!ProcessNormalInputFunc(ActionRouter, IE_Pressed))
+			{
+				if (Key == EKeys::Virtual_Gamepad_Accept.GetVirtualKey() && ActionRouter.AnalogCursor.IsValid())
+				{
+					// If Virtual_Accept is bound to a Hold action, the Pressed event for it will not trigger a simulated click
+					// but when a hold action is canceled fast enough, we want to trigger any "normal" actions bound to the same key
+					// so we give the analog cursor a chance to trigger the simulated click here
+					// This allows users to bind Hold actions to Virtual_Accept while still triggering focused button widgets with quick virtual_accept presses
+					ActionRouter.AnalogCursor->OnVirtualAcceptHoldCanceled();
+				}
+			}
 		}
 
 		// Even if no widget cares about this input, we don't want to let anything through to the actual game while we're in menu mode
@@ -896,7 +916,7 @@ void UCommonUIActionRouterBase::HandleRootNodeActivated(TWeakPtr<FActivatableTre
 			}
 		}
 	}
-	else if (UCommonInputActionDomain* WidgetActionDomain = NodeWidget ? NodeWidget->GetCalculatedActionDomain() : nullptr)
+	else if (UCommonInputActionDomain* WidgetActionDomain = NodeWidget ? NodeWidget->GetCalculatedActionDomain().Get() : nullptr)
 	{
 		const FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(WidgetActionDomain);
 		if (ActionDomainRootList && ensure(ActionDomainRootList->Contains(ActivatedRoot)))
@@ -1137,6 +1157,12 @@ void UCommonUIActionRouterBase::DebugDumpActionDomainRootNodes(int32 UserIndex, 
 
 void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 {
+	RefreshRootNodes();
+	RefreshBoundActions();
+}
+
+void UCommonUIActionRouterBase::RefreshRootNodes()
+{
 	// Begin by organizing all of the widgets that need nodes according to their direct parent
 	TArray<UCommonActivatableWidget*> RootCandidates;
 	TMap<UCommonActivatableWidget*, TArray<UCommonActivatableWidget*>> WidgetsByDirectParent;
@@ -1155,6 +1181,7 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 			}
 		}
 	}
+	RebuiltWidgetsPendingNodeAssignment.Reset();
 
 	// Build a new tree for any new roots
 	for (UCommonActivatableWidget* RootWidget : RootCandidates)
@@ -1208,7 +1235,10 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 	{
 		ensureAlwaysMsgf(false, TEXT("Somehow we rebuilt a widget that is owned by an activatable, but no node exists for that activatable. This *should* be completely impossible."));
 	}
+}
 	
+void UCommonUIActionRouterBase::RefreshBoundActions()
+{
 	// Now, we account for all the widgets that would like their actions bound
 	for (const FPendingWidgetRegistration& PendingRegistration : PendingWidgetRegistrations)
 	{
@@ -1238,7 +1268,6 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 		}
 	}
 
-	RebuiltWidgetsPendingNodeAssignment.Reset();
 	PendingWidgetRegistrations.Reset();
 }
 
@@ -1736,6 +1765,11 @@ void UCommonUIActionRouterBase::RefreshActionDomainLeafNodeConfig()
 
 	if (const UCommonInputActionDomainTable* ActionDomainTable = GetActionDomainTable())
 	{
+		if (RebuiltWidgetsPendingNodeAssignment.Num() > 0)
+		{
+			RefreshRootNodes();
+		}
+
 		if (FActivatableTreeRootPtr RootNode = FindActiveActionDomainRootNode())
 		{
 			if (!RootNode->UpdateLeafmostActiveNode(RootNode))
@@ -1745,7 +1779,7 @@ void UCommonUIActionRouterBase::RefreshActionDomainLeafNodeConfig()
 		}
 		else
 		{
-			SetActiveUIInputConfig(FUIInputConfig(ActionDomainTable->InputMode, ActionDomainTable->MouseCaptureMode), ActionDomainTable);
+			SetActiveUIInputConfig(FUIInputConfig(ActionDomainTable->InputMode, ActionDomainTable->MouseCaptureMode, ActionDomainTable->bHideCursorDuringViewportCapture), ActionDomainTable);
 		}
 	}
 }
@@ -1754,7 +1788,7 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 {
 	if (bForceRefresh || NewConfig != ActiveInputConfig.GetValue())
 	{
-		UE_LOG(LogUIActionRouter, Display, TEXT("UIInputConfig being changed. bForceRefresh: %d"), bForceRefresh ? 1 : 0);
+		UE_LOG(LogUIActionRouter, Display, TEXT("UIInputConfig being changed. bForceRefresh: %d, UserIndex: %d"), bForceRefresh ? 1 : 0, GetLocalPlayerIndex());
 		UE_LOG(LogUIActionRouter, Display, TEXT("\tInputMode: Previous (%s), New (%s)"),
 			ActiveInputConfig.IsSet() ? *StaticEnum<ECommonInputMode>()->GetValueAsString(ActiveInputConfig->GetInputMode()) : TEXT("None"), *StaticEnum<ECommonInputMode>()->GetValueAsString(NewConfig.GetInputMode()));
 
@@ -1947,6 +1981,7 @@ public:
 	{
 		if (World == nullptr)
 		{
+			UE_LOG(LogUIActionRouter, Error, TEXT("No World, unable to run CommonUI.DumpActivatableTree"));
 			return;
 		}
 
@@ -1956,6 +1991,12 @@ public:
 		const int LocalPlayerIndex = Args.IsValidIndex(3) ? FCString::Atoi(*Args[3]) : -1;
 
 		UGameInstance* GameInstance = World->GetGameInstance();
+		if (GameInstance == nullptr)
+		{
+			UE_LOG(LogUIActionRouter, Error, TEXT("No GameInstance, unable to run CommonUI.DumpActivatableTree"));
+			return;
+		}
+
 		const TArray<ULocalPlayer*>& LocalPlayers = GameInstance->GetLocalPlayers();
 		for (int32 CurrIdx = 0; CurrIdx < LocalPlayers.Num(); ++CurrIdx)
 		{
