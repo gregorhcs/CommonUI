@@ -34,6 +34,10 @@ protected:
 	/** How quickly the carousel transitions when changing active widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetMoveSpeed", BlueprintSetter="SetMoveSpeed", Category="Carousel", meta=( UIMin=0, ClampMin=0 ))
 	float MoveSpeed;
+
+	/** Whether we should cache children to prevent them from being destroyed when not visible. Enable this to avoid ConstructWidget costs when changing index, disable to save memory  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetCacheChildren", Setter = "SetCacheChildren", BlueprintGetter = "GetCacheChildren", BlueprintSetter = "SetCacheChildren", Category = "Carousel")
+	bool bCacheChildren;
 	
 public:
 
@@ -72,6 +76,14 @@ public:
 	/** Gets the Move Speed. */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	UE_API float GetMoveSpeed() const;
+
+	/** Sets the current caching behavior. */
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	UE_API void SetCacheChildren(bool InCacheChildren);
+
+	/** Gets the current caching behavior. */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	UE_API bool GetCacheChildren() const;
 	
 	UPROPERTY(BlueprintAssignable, Category = "Carousel")
 	FOnCurrentPageIndexChanged OnCurrentPageIndexChanged;
@@ -100,6 +112,7 @@ protected:
 	// UPanelWidget
 	UE_API virtual UClass* GetSlotClass() const override;
 	UE_API virtual void OnSlotAdded(UPanelSlot* InSlot) override;
+	UE_API virtual void OnSlotRemoved(UPanelSlot* InSlot) override;
 	// End UPanelWidget
 
 	// UWidget interface

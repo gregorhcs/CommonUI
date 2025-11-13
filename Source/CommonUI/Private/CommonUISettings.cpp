@@ -57,6 +57,11 @@ void UCommonUISettings::PostInitProperties()
 
 void UCommonUISettings::LoadEditorData()
 {
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
 	if (!bDefaultDataLoaded)
 	{
 		DefaultImageResourceObjectInstance = DefaultImageResourceObject.LoadSynchronous();

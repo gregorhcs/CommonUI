@@ -16,6 +16,21 @@ UCommonLazyWidget::UCommonLazyWidget(const FObjectInitializer& Initializer)
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
+void UCommonLazyWidget::SetLazyContent(const TSoftClassPtr<UUserWidget> SoftWidget)
+{
+	SetLazyContentInternal(SoftWidget, {});
+}
+
+void UCommonLazyWidget::SetLazyContentWithCallback(const TSoftClassPtr<UUserWidget> SoftWidget, const FOnWidgetCreated& OnCreatedCallback)
+{
+	SetLazyContentInternal<UUserWidget>(SoftWidget, [OnCreatedCallback](UUserWidget& Widget) { OnCreatedCallback.ExecuteIfBound(&Widget); });
+}
+
+void UCommonLazyWidget::LoadLazyContent()
+{
+	LoadLazyContent({});
+}
+
 TSharedRef<SWidget> UCommonLazyWidget::RebuildWidget()
 {
 	MyLoadGuard = SNew(SLoadGuard)
@@ -50,7 +65,14 @@ void UCommonLazyWidget::SynchronizeProperties()
 #if WITH_EDITOR
 		if (IsDesignTime())
 		{
-			MyLoadGuard->SetForceShowSpinner(true);
+			if (!WidgetClass.IsNull())
+			{
+				SetLazyContent(WidgetClass);
+			}
+			else
+			{
+				MyLoadGuard->SetForceShowSpinner(true);
+			}
 		}
 #endif
 	}
@@ -93,42 +115,16 @@ bool UCommonLazyWidget::IsLoading() const
 	return MyLoadGuard.IsValid() && MyLoadGuard->IsLoading();
 }
 
-void UCommonLazyWidget::SetLazyContent(const TSoftClassPtr<UUserWidget> SoftWidget)
-{
-	if (SoftWidget.IsNull())
-	{
-		CancelStreaming();
-		SetLoadedContent(nullptr);
-	}
-
-	TWeakObjectPtr<UCommonLazyWidget> WeakThis(this);
-
-	RequestAsyncLoad(SoftWidget,
-		[WeakThis, SoftWidget]() {
-			if (ThisClass* StrongThis = WeakThis.Get())
-			{
-				if (ensureMsgf(SoftWidget.Get(), TEXT("Failed to load %s"), *SoftWidget.ToSoftObjectPath().ToString()))
-				{
-					// Don't reload the class if we're already this class.
-					if (StrongThis->Content && StrongThis->Content->GetClass() == SoftWidget.Get())
-					{
-						StrongThis->OnContentChangedEvent.Broadcast(StrongThis->Content);
-						return;
-					}
-
-					UUserWidget* UserWidget = CreateWidget(StrongThis->GetOwningPlayer(), SoftWidget.Get());
-					StrongThis->SetLoadedContent(UserWidget);
-				}
-			}
-		}
-	);
-}
-
 void UCommonLazyWidget::SetLoadedContent(UUserWidget* InContent)
 {
-	if (UCommonActivatableWidget* OutgoingActivatable = Cast<UCommonActivatableWidget>(Content))
+	const bool bPerformActivateDeactivate = !IsDesignTime();
+
+	if (bPerformActivateDeactivate)
 	{
-		OutgoingActivatable->DeactivateWidget();
+		if (UCommonActivatableWidget* OutgoingActivatable = Cast<UCommonActivatableWidget>(Content))
+		{
+			OutgoingActivatable->DeactivateWidget();
+		}
 	}
 
 	Content = InContent;
@@ -138,9 +134,12 @@ void UCommonLazyWidget::SetLoadedContent(UUserWidget* InContent)
 		MyLoadGuard->SetContent(InContent ? InContent->TakeWidget() : SNullWidget::NullWidget);
 	}
 
-	if (UCommonActivatableWidget* IncomingActivatable = Cast<UCommonActivatableWidget>(Content))
+	if (bPerformActivateDeactivate)
 	{
-		IncomingActivatable->ActivateWidget();
+		if (UCommonActivatableWidget* IncomingActivatable = Cast<UCommonActivatableWidget>(Content))
+		{
+			IncomingActivatable->ActivateWidget();
+		}
 	}
 
 	OnContentChangedEvent.Broadcast(Content);

@@ -87,6 +87,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	bool bHideCursorDuringViewportCapture = true;
 };
 
 #undef UE_API

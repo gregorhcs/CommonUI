@@ -3,6 +3,7 @@
 #include "CommonTabListWidgetBase.h"
 
 #include "CommonAnimatedSwitcher.h"
+#include "CommonUIPrivate.h"
 #include "Groups/CommonButtonGroupBase.h"
 #include "Input/CommonUIInputTypes.h"
 #include "CommonUITypes.h"
@@ -44,22 +45,25 @@ bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonB
 	bool bAreParametersValid = true;
 
 	// Early out on redundant tab registration.
-	if (!ensure(!RegisteredTabsByID.Contains(TabNameID)))
+	if (RegisteredTabsByID.Contains(TabNameID))
 	{
 		bAreParametersValid = false;
+		UE_LOG(LogCommonUI, Warning, TEXT("RegisteredTabsByID already contains a tab called [%s]"), *TabNameID.ToString());
 	}
 
 	// Early out on invalid tab button type.
-	if (!ensure(ButtonWidgetType))
+	if (ButtonWidgetType == nullptr)
 	{
 		bAreParametersValid = false;
+		UE_LOG(LogCommonUI, Warning, TEXT("RegisteredTabsByID missing ButtonWidgetType [%s]"), *TabNameID.ToString());
 	}
 	
 	// NOTE: Adding the button to the group may change it's selection, which raises an event we listen to,
 	// which can only properly be handled if we already know that this button is associated with a registered tab.
-	if (!ensure(TabButtonGroup))
+	if (TabButtonGroup == nullptr)
 	{
 		bAreParametersValid = false;
+		UE_LOG(LogCommonUI, Warning, TEXT("RegisteredTabsByID missing TabButtonGroup [%s]"), *TabNameID.ToString());
 	}
 
 	if (!bAreParametersValid)
@@ -78,7 +82,7 @@ bool UCommonTabListWidgetBase::RegisterTab(FName TabNameID, TSubclassOf<UCommonB
 	const int32 NewTabIndex = (TabIndex == INDEX_NONE) ? NumRegisteredTabs : FMath::Clamp(TabIndex, 0, NumRegisteredTabs);
 
 	// If the new tab is being inserted before the end of the list, we need to rebuild the tab list.
-	const bool bRequiresRebuild = (NewTabIndex < NumRegisteredTabs);
+	const bool bRequiresRebuild = !IsRebuildingList() && (NewTabIndex < NumRegisteredTabs);
 
 	if (bRequiresRebuild)
 	{

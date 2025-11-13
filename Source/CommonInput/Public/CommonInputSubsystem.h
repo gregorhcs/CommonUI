@@ -101,6 +101,9 @@ public:
 	*/
 	static FPlatformInputSupportOverrideDelegate& GetOnPlatformInputSupportOverride() { return OnPlatformInputSupportOverride; }
 
+	/** Returns true if the input method changed in the last thrashing window. See UCommonInputSettings::GetInputMethodThrashingWindowInSeconds */
+	UE_API bool HadAnyChangeOfInputMethodInTheLastThrashingWindow() const;
+
 protected:
 	UE_API virtual TSharedPtr<FCommonInputPreprocessor> MakeInputProcessor();
 
@@ -151,6 +154,10 @@ private:
 	/**  */
 	UPROPERTY(Transient)
 	FName GamepadInputType;
+
+	/** Whether the last input type recalculation was locked out by input thrashing */
+	UPROPERTY(Transient)
+	bool bInputMethodLockedByThrashing = false;
 
 	/**  */
 	UPROPERTY(Transient)

@@ -12,6 +12,7 @@ UCommonWidgetCarousel::UCommonWidgetCarousel(const FObjectInitializer& ObjectIni
 	SetClipping(EWidgetClipping::ClipToBounds);
 
 	MoveSpeed = 5.f;
+	bCacheChildren = true;
 }
 
 void UCommonWidgetCarousel::ReleaseSlateResources(bool bReleaseChildren)
@@ -34,7 +35,7 @@ void UCommonWidgetCarousel::EndAutoScrolling()
 {
 	if ( TickerHandle.IsValid() )
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::RemoveTicker(TickerHandle);
 		TickerHandle.Reset();
 	}
 }
@@ -89,6 +90,33 @@ float UCommonWidgetCarousel::GetMoveSpeed() const
 	return MoveSpeed;
 }
 
+void UCommonWidgetCarousel::SetCacheChildren(bool InCacheChildren)
+{
+	if (bCacheChildren != InCacheChildren)
+	{
+		bCacheChildren = InCacheChildren;
+		if (bCacheChildren)
+		{
+			for (UPanelSlot* PanelSlot : Slots)
+			{
+				if (PanelSlot->Content)
+				{
+					CachedSlotWidgets.AddUnique(PanelSlot->Content->TakeWidget());
+				}
+			}
+		}
+		else
+		{
+			CachedSlotWidgets.Empty();
+		}
+	}
+}
+
+bool UCommonWidgetCarousel::GetCacheChildren() const
+{
+	return bCacheChildren;
+}
+
 int32 UCommonWidgetCarousel::GetActiveWidgetIndex() const
 {
 	if ( MyCommonWidgetCarousel.IsValid() )
@@ -138,9 +166,30 @@ UClass* UCommonWidgetCarousel::GetSlotClass() const
 
 void UCommonWidgetCarousel::OnSlotAdded(UPanelSlot* InSlot)
 {
+	if (bCacheChildren && InSlot && InSlot->Content)
+	{
+		const TSharedPtr<SWidget> SafeWidget = InSlot->Content->TakeWidget();
+		if (SafeWidget.IsValid())
+		{
+			CachedSlotWidgets.AddUnique(SafeWidget.ToSharedRef());
+		}
+	}
+
 	if (MyCommonWidgetCarousel)
 	{
 		MyCommonWidgetCarousel->GenerateCurrentWidgets();
+	}
+}
+
+void UCommonWidgetCarousel::OnSlotRemoved(UPanelSlot* InSlot)
+{
+	if (bCacheChildren && InSlot && InSlot->Content)
+	{
+		const TSharedPtr<SWidget> SafeWidget = InSlot->Content->GetCachedWidget();
+		if (SafeWidget.IsValid())
+		{
+			CachedSlotWidgets.Remove(SafeWidget.ToSharedRef());
+		}
 	}
 }
 
@@ -155,10 +204,12 @@ TSharedRef<SWidget> UCommonWidgetCarousel::RebuildWidget()
 		.OnGenerateWidget_UObject(this, &UCommonWidgetCarousel::OnGenerateWidgetForCarousel)
 		.OnPageChanged_UObject(this, &UCommonWidgetCarousel::HandlePageChanged);
 
+	CachedSlotWidgets.Empty();
+
 	for (UPanelSlot* PanelSlot : Slots)
 	{
 		PanelSlot->Parent = this;
-		if (PanelSlot->Content)
+		if (bCacheChildren && PanelSlot->Content)
 		{
 			CachedSlotWidgets.AddUnique(PanelSlot->Content->TakeWidget());
 		}

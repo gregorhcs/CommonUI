@@ -16,11 +16,22 @@ class SCommonButtonTableRow : public SObjectTableRow<ItemType>
 {
 public:
 	SLATE_BEGIN_ARGS(SCommonButtonTableRow<ItemType>)
-		:_bAllowDragging(true)
+		:_bAllowDragging(true),
+		_bAllowKeepPreselectedItems(true)
 	{}
 		SLATE_ARGUMENT(bool, bAllowDragging)
+		SLATE_ARGUMENT(bool, bAllowDragDrop)
+		SLATE_ARGUMENT(bool, bAllowKeepPreselectedItems)
 		SLATE_EVENT(FOnRowHovered, OnHovered)
 		SLATE_EVENT(FOnRowHovered, OnUnhovered)
+		//	Drag and Drop functionality
+		SLATE_EVENT(FOnObjectRowCanAcceptDrop, OnRowCanAcceptDrop)
+		SLATE_EVENT(FOnObjectRowAcceptDrop, OnRowAcceptDrop)
+		SLATE_EVENT(FOnObjectRowDragDetected, OnRowDragDetected)
+		SLATE_EVENT(FOnObjectRowDragEnter, OnRowDragEnter)
+		SLATE_EVENT(FOnObjectRowDragLeave, OnRowDragLeave)
+		SLATE_EVENT(FOnObjectRowDragCancelled, OnRowDragCancelled)
+		//	End Drag and Drop
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 
@@ -30,8 +41,16 @@ public:
 		SObjectTableRow<ItemType>::Construct(
 			typename SObjectTableRow<ItemType>::FArguments()
 			.bAllowDragging(InArgs._bAllowDragging)
+			.bAllowDragDrop(InArgs._bAllowDragDrop)
+			.bAllowKeepPreselectedItems(InArgs._bAllowKeepPreselectedItems)
 			.OnHovered(InArgs._OnHovered)
 			.OnUnhovered(InArgs._OnUnhovered)
+			.OnRowCanAcceptDrop(InArgs._OnRowCanAcceptDrop)
+			.OnRowAcceptDrop(InArgs._OnRowAcceptDrop)
+			.OnRowDragDetected(InArgs._OnRowDragDetected)
+			.OnRowDragLeave(InArgs._OnRowDragLeave)
+			.OnRowDragEnter(InArgs._OnRowDragEnter)
+			.OnRowDragCancelled(InArgs._OnRowDragCancelled)
 			[
 				InArgs._Content.Widget
 			], 
@@ -45,7 +64,7 @@ public:
 			CommonButton->SetIsToggleable(SelectionMode == ESelectionMode::SingleToggle || SelectionMode == ESelectionMode::Multi);
 			CommonButton->SetIsSelectable(SelectionMode != ESelectionMode::None);
 			CommonButton->SetIsInteractableWhenSelected(SelectionMode != ESelectionMode::None);
-
+			CommonButton->SetAllowDragDrop(InArgs._bAllowDragDrop);
 			CommonButton->SetTouchMethod(EButtonTouchMethod::PreciseTap);
 		}
 	}
@@ -69,6 +88,15 @@ protected:
 			CommonButton->OnHovered().AddSP(this, &SCommonButtonTableRow::HandleButtonHovered);
 			CommonButton->OnUnhovered().AddSP(this, &SCommonButtonTableRow::HandleButtonUnhovered);
 			CommonButton->OnIsSelectedChanged().AddSP(this, &SCommonButtonTableRow::HandleButtonSelectionChanged);
+
+			if (this->GetAllowDragDrop())
+			{
+				CommonButton->OnCommonButtonDragDetected().BindSP(this, &SCommonButtonTableRow::OnDragDetected);
+				CommonButton->OnCommonButtonDragEnter().BindSP(this, &SCommonButtonTableRow::OnDragEnter);
+				CommonButton->OnCommonButtonDragLeave().BindSP(this, &SCommonButtonTableRow::OnDragLeave);
+				CommonButton->OnCommonButtonDragOver().BindSP(this, &SCommonButtonTableRow::OnDragOver);
+				CommonButton->OnCommonButtonDrop().BindSP(this, &SCommonButtonTableRow::OnDrop);
+			}
 
 			if (this->IsItemSelectable())
 			{
@@ -97,6 +125,12 @@ protected:
 			CommonButton->OnHovered().RemoveAll(this);
 			CommonButton->OnUnhovered().RemoveAll(this);
 			CommonButton->OnIsSelectedChanged().RemoveAll(this);
+
+			CommonButton->OnCommonButtonDragDetected().Unbind();
+			CommonButton->OnCommonButtonDragEnter().Unbind();
+			CommonButton->OnCommonButtonDragLeave().Unbind();
+			CommonButton->OnCommonButtonDragOver().Unbind();
+			CommonButton->OnCommonButtonDrop().Unbind();
 
 			if (CommonButton->GetSelected())
 			{

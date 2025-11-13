@@ -248,7 +248,7 @@ void UCommonInputPlatformSettings::InitializeControllerData() const
 {
 	if (ControllerData.Num() != ControllerDataClasses.Num())
 	{
-		ControllerDataClasses.Reset();
+		ControllerDataClasses.Reset(ControllerData.Num());
 		for (TSoftClassPtr<UCommonInputBaseControllerData> ControllerDataPtr : ControllerData)
 		{
 			if (TSubclassOf<UCommonInputBaseControllerData> ControllerDataClass = ControllerDataPtr.LoadSynchronous())

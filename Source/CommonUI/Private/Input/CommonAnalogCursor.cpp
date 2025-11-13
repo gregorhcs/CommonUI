@@ -27,6 +27,11 @@ static const TAutoConsoleVariable<bool> CVarShouldVirtualAcceptSimulateMouseButt
 	true,
 	TEXT("Controls if virtual_accept key events will be converted to left mouse button events."));
 
+static const TAutoConsoleVariable<bool> CVarShouldRouteOffscreenMouseButton(
+	TEXT("CommonUI.ShouldRouteOffscreenMouseButton"),
+	false,
+	TEXT("Controls if we should directly route mouse events to offscreen widgets."));
+
 bool IsEligibleFakeKeyPointerEvent(const FPointerEvent& PointerEvent)
 {
 	FKey EffectingButton = PointerEvent.GetEffectingButton();
@@ -34,6 +39,83 @@ bool IsEligibleFakeKeyPointerEvent(const FPointerEvent& PointerEvent)
 		&& EffectingButton != EKeys::LeftMouseButton
 		&& EffectingButton != EKeys::RightMouseButton
 		&& EffectingButton != EKeys::MiddleMouseButton;
+}
+
+bool IsCursorWithinRenderBounds(TSharedRef<SWidget> Widget, FSlateApplication& SlateApp, TSharedRef<FSlateUser> SlateUser)
+{
+	// Cursor is outside the clipped widget (i.e. outside viewport)
+	TOptional<FSlateClippingState> ClippingState = Widget->GetCurrentClippingState();
+	if (ClippingState.IsSet() && !ClippingState->IsPointInside(SlateUser->GetCursorPosition()))
+	{
+		return false;
+	}
+	else
+	{
+		// Cursor is outside window
+		TSharedPtr<SWindow> FocusedWindow = SlateApp.FindWidgetWindow(Widget);
+		if (!FocusedWindow.IsValid())
+		{
+			return true; // Widget is outside window, as there is no window
+		}
+
+		const FGeometry Geometry = FocusedWindow->GetCachedGeometry();
+		const FVector2D LocalPoint = Geometry.AbsoluteToLocal(SlateUser->GetCursorPosition());
+
+		if (LocalPoint.X < 0.0 || LocalPoint.Y < 0.0 || LocalPoint.X > Geometry.GetLocalSize().X || LocalPoint.Y > Geometry.GetLocalSize().Y)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+TOptional<FPointerEvent> GetSimulatedMouseEventForOffscreenFocusedWidget(const FKeyEvent& InKeyEvent, FSlateApplication& SlateApp,FWidgetPath& OutWidgetPath)
+{
+	TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(InKeyEvent);
+	TSharedPtr<SWidget> FocusedWidget = SlateApp.GetUserFocusedWidget(InKeyEvent.GetUserIndex());
+	if(!SlateUser.IsValid() || !FocusedWidget.IsValid())
+	{
+		return TOptional<FPointerEvent>();
+	}
+
+	if (IsCursorWithinRenderBounds(FocusedWidget.ToSharedRef(), SlateApp, SlateUser.ToSharedRef()))
+	{
+		return TOptional<FPointerEvent>();
+	}
+
+	FWidgetPath WidgetPathNoPointer;
+	SlateApp.FindPathToWidget(FocusedWidget.ToSharedRef(), WidgetPathNoPointer);
+
+	if (!WidgetPathNoPointer.IsValid())
+	{
+		return TOptional<FPointerEvent>();
+	}
+
+	TArray<FWidgetAndPointer> WidgetAndPointers;
+	WidgetAndPointers.Reserve(WidgetPathNoPointer.Widgets.Num());
+
+	for (int32 Index = 0; Index < WidgetPathNoPointer.Widgets.Num(); ++Index)
+	{
+		const FVirtualPointerPosition VirtualCursorPosition(SlateUser->GetCursorPosition(), SlateUser->GetPreviousCursorPosition());
+		WidgetAndPointers.Add(FWidgetAndPointer(WidgetPathNoPointer.Widgets[Index], VirtualCursorPosition)) ;
+	}
+
+	OutWidgetPath = FWidgetPath(WidgetAndPointers);
+
+	const bool bIsPrimaryUser = FSlateApplication::CursorUserIndex == SlateUser->GetUserIndex();
+	FPointerEvent MouseEvent(
+		SlateUser->GetUserIndex(),
+		FSlateApplication::CursorPointerIndex,
+		SlateUser->GetCursorPosition(),
+		SlateUser->GetPreviousCursorPosition(),
+		bIsPrimaryUser ? SlateApp.GetPressedMouseButtons() : FTouchKeySet::EmptySet,
+		EKeys::LeftMouseButton,
+		0,
+		bIsPrimaryUser ? SlateApp.GetModifierKeys() : FModifierKeysState()
+	);
+
+	return MouseEvent;
 }
 
 FCommonAnalogCursor::FCommonAnalogCursor(const UCommonUIActionRouterBase& InActionRouter)
@@ -209,10 +291,10 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 										ScrollAmount,
 										FModifierKeysState());
 
-									UCommonInputSubsystem& InputSubsytem = ActionRouter.GetInputSubsystem();
-									InputSubsytem.SetIsGamepadSimulatedClick(true);
+									UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
+									InputSubsystem.SetIsGamepadSimulatedClick(true);
 									SlateApp.ProcessMouseWheelOrGestureEvent(MouseEvent, nullptr);
-									InputSubsytem.SetIsGamepadSimulatedClick(false);
+									InputSubsystem.SetIsGamepadSimulatedClick(false);
 								}
 							}
 						}
@@ -255,7 +337,7 @@ bool FCommonAnalogCursor::HandleKeyDownEvent(FSlateApplication& SlateApp, const 
 #endif
 
 		// We support binding actions to the virtual accept key, so it's a special flower that gets processed right now
-		const bool bIsVirtualAccept = InKeyEvent.GetKey() == EKeys::Virtual_Accept;
+		const bool bIsVirtualAccept = InKeyEvent.GetKey() == EKeys::Virtual_Gamepad_Accept.GetVirtualKey();
 		const EInputEvent InputEventType = InKeyEvent.IsRepeat() ? IE_Repeat : IE_Pressed;
 		if (bIsVirtualAccept && ActionRouter.ProcessInput(InKeyEvent.GetKey(), InputEventType) == ERouteUIInputResult::Handled)
 		{
@@ -263,11 +345,28 @@ bool FCommonAnalogCursor::HandleKeyDownEvent(FSlateApplication& SlateApp, const 
 		}
 		else if (!bIsVirtualAccept || ShouldVirtualAcceptSimulateMouseButton(InKeyEvent, IE_Pressed))
 		{
+			// If virtually accepting the focused widget, and cursor is not within the current cliprect or window, we can not rely on the hittest grid as the cursor and widget position may not updated correctly.
+			// For instance, when attemptign to forward mouse input to animating or offscreen widgets. As a workaround, directly forard the pointer down event to the focused widget path.
+			if (bIsVirtualAccept && CVarShouldRouteOffscreenMouseButton.GetValueOnGameThread())
+			{
+				FWidgetPath FocusedWidgetPath;
+				TOptional<FPointerEvent> MouseEvent = GetSimulatedMouseEventForOffscreenFocusedWidget(InKeyEvent, SlateApp, FocusedWidgetPath);
+				if (MouseEvent.IsSet())
+				{
+					UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
+					InputSubsystem.SetIsGamepadSimulatedClick(bIsVirtualAccept);
+					const bool bReturnValue = SlateApp.RoutePointerDownEvent(FocusedWidgetPath, MouseEvent.GetValue()).IsEventHandled();
+					InputSubsystem.SetIsGamepadSimulatedClick(false);
+					
+					return bReturnValue;
+				}
+			}
+
 			// There is no awareness on a mouse event of whether it's real or not, so mark that here.
-			UCommonInputSubsystem& InputSubsytem = ActionRouter.GetInputSubsystem();
-			InputSubsytem.SetIsGamepadSimulatedClick(bIsVirtualAccept);
+			UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
+			InputSubsystem.SetIsGamepadSimulatedClick(bIsVirtualAccept);
 			bool bReturnValue = FAnalogCursor::HandleKeyDownEvent(SlateApp, InKeyEvent);
-			InputSubsytem.SetIsGamepadSimulatedClick(false);
+			InputSubsystem.SetIsGamepadSimulatedClick(false);
 
 			return bReturnValue;
 		}
@@ -287,14 +386,28 @@ bool FCommonAnalogCursor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FK
 		if (PressedKey == EKeys::Gamepad_RightTrigger) { ShoulderButtonStatus ^= EShoulderButtonFlags::RightTrigger; }
 #endif
 
+		TGuardValue<TOptional<FKeyEvent>> KeyUpEventGuard(ActiveKeyUpEvent, TOptional<FKeyEvent>(InKeyEvent));
+		
 		// We support binding actions to the virtual accept key, so it's a special flower that gets processed right now
-		const bool bIsVirtualAccept = InKeyEvent.GetKey() == EKeys::Virtual_Accept;
+		const bool bIsVirtualAccept = InKeyEvent.GetKey() == EKeys::Virtual_Gamepad_Accept.GetVirtualKey();
 		if (bIsVirtualAccept && ActionRouter.ProcessInput(InKeyEvent.GetKey(), IE_Released) == ERouteUIInputResult::Handled)
 		{
 			return true;
 		}
 		else if (!bIsVirtualAccept || ShouldVirtualAcceptSimulateMouseButton(InKeyEvent, IE_Released))
 		{
+						// If virtually accepting the focused widget, and cursor is not within the current cliprect or window, we can not rely on the hittest grid as the cursor and widget position may not updated correctly.
+			// For instance, when attemptign to forward mouse input to animating or offscreen widgets. As a workaround, directly forard the pointer down event to the focused widget path.
+			if (bIsVirtualAccept && CVarShouldRouteOffscreenMouseButton.GetValueOnGameThread())
+			{
+				FWidgetPath FocusedWidgetPath;
+				TOptional<FPointerEvent> MouseEvent = GetSimulatedMouseEventForOffscreenFocusedWidget(InKeyEvent, SlateApp, FocusedWidgetPath);
+				if (MouseEvent.IsSet())
+				{
+					return SlateApp.RoutePointerUpEvent(FocusedWidgetPath, MouseEvent.GetValue()).IsEventHandled();
+				}
+			}
+
 			return FAnalogCursor::HandleKeyUpEvent(SlateApp, InKeyEvent);
 		}
 	}
@@ -415,6 +528,17 @@ bool FCommonAnalogCursor::ShouldVirtualAcceptSimulateMouseButton(const FKeyEvent
 	return CVarShouldVirtualAcceptSimulateMouseButton.GetValueOnGameThread();
 }
 
+void FCommonAnalogCursor::OnVirtualAcceptHoldCanceled()
+{
+	if (ActiveKeyUpEvent.IsSet() && ActiveKeyUpEvent->GetKey() == EKeys::Virtual_Gamepad_Accept.GetVirtualKey() && ShouldVirtualAcceptSimulateMouseButton(ActiveKeyUpEvent.GetValue(), IE_Pressed))
+	{
+		UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
+		InputSubsystem.SetIsGamepadSimulatedClick(true);
+		FAnalogCursor::HandleKeyDownEvent(FSlateApplication::Get(), ActiveKeyUpEvent.GetValue());
+		InputSubsystem.SetIsGamepadSimulatedClick(false);
+	}
+}
+
 //void FCommonAnalogCursor::SetCursorMovementStick(EAnalogStick InCursorMovementStick)
 //{
 //	const EAnalogStick NewStick = InCursorMovementStick == EAnalogStick::Max ? EAnalogStick::Left : InCursorMovementStick;
@@ -444,7 +568,7 @@ EOrientation FCommonAnalogCursor::DetermineScrollOrientation(const UWidget& Widg
 
 bool FCommonAnalogCursor::IsRelevantInput(const FKeyEvent& KeyEvent) const
 {
-	return IsUsingGamepad() && FAnalogCursor::IsRelevantInput(KeyEvent) && (IsGameViewportInFocusPathWithoutCapture() || (KeyEvent.GetKey() == EKeys::Virtual_Accept && CanReleaseMouseCapture()));
+	return IsUsingGamepad() && FAnalogCursor::IsRelevantInput(KeyEvent) && (IsGameViewportInFocusPathWithoutCapture() || (KeyEvent.GetKey() == EKeys::Virtual_Gamepad_Accept.GetVirtualKey() && CanReleaseMouseCapture()));
 }
 
 bool FCommonAnalogCursor::IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const

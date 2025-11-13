@@ -102,7 +102,7 @@ void UCommonInputSubsystem::Deinitialize()
 	}
 	CommonInputPreprocessor.Reset();
 
-	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	FTSTicker::RemoveTicker(TickHandle);
 }
 
 FGamepadChangeDetectedEvent& UCommonInputSubsystem::GetOnGamepadChangeDetected()
@@ -162,6 +162,13 @@ void UCommonInputSubsystem::AddOrRemoveInputTypeLock(FName InReason, ECommonInpu
 bool UCommonInputSubsystem::IsInputMethodActive(ECommonInputType InputMethod) const
 {
 	return GetCurrentInputType() == InputMethod;
+}
+
+bool UCommonInputSubsystem::HadAnyChangeOfInputMethodInTheLastThrashingWindow() const
+{
+	const UCommonInputSettings& InputSettings = ICommonInputModule::GetSettings();
+	const double ChangeDelta = (FPlatformTime::Seconds() - LastInputMethodChangeTime);
+	return ChangeDelta < InputSettings.GetInputMethodThrashingWindowInSeconds();
 }
 
 TSharedPtr<FCommonInputPreprocessor> UCommonInputSubsystem::MakeInputProcessor()
@@ -227,8 +234,7 @@ bool UCommonInputSubsystem::CheckForInputMethodThrashing(ECommonInputType NewInp
 			return false;
 		}
 
-		const double ChangeDelta = (Now - LastInputMethodChangeTime);
-		if (ChangeDelta < InputSettings.GetInputMethodThrashingWindowInSeconds())
+		if (HadAnyChangeOfInputMethodInTheLastThrashingWindow())
 		{
 			NumberOfInputMethodChangesRecently++;
 			if (NumberOfInputMethodChangesRecently > InputSettings.GetInputMethodThrashingLimit())
@@ -305,12 +311,12 @@ void UCommonInputSubsystem::RecalculateCurrentInputType()
 
 void UCommonInputSubsystem::SetCurrentInputType(ECommonInputType NewInputType)
 {
-	if ((RawInputType != NewInputType) && PlatformSupportsInputType(NewInputType))
+	if (((RawInputType != NewInputType) || bInputMethodLockedByThrashing) && PlatformSupportsInputType(NewInputType))
 	{
 		RawInputType = NewInputType;
 
-		const bool bIsLockedByThrashing = CheckForInputMethodThrashing(NewInputType);
-		if (!bIsLockedByThrashing)
+		bInputMethodLockedByThrashing = CheckForInputMethodThrashing(NewInputType);
+		if (!bInputMethodLockedByThrashing)
 		{
 			RecalculateCurrentInputType();
 		}

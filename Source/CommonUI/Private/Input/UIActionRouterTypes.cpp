@@ -23,6 +23,12 @@
 
 DEFINE_LOG_CATEGORY(LogUIActionRouter);
 
+static const TAutoConsoleVariable<bool> CVarGamepadFocusHoveredWidget(
+	TEXT("CommonUI.GamepadFocusHoveredWidget"),
+	false,
+	TEXT("If enabled, the mouse hovered widget, will be focused when switching to gamepad input"));
+
+
 const TCHAR* InputEventToString(EInputEvent InputEvent)
 {
 	switch (InputEvent)
@@ -222,14 +228,15 @@ FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget,
 FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget, const FBindUIActionArgs& BindArgs, int32 UserIndex)
 {
 	bool bIsEnhancedInputSupportEnabled = CommonUI::IsEnhancedInputSupportEnabled();
-	if (BindArgs.GetActionName().IsNone() && (!bIsEnhancedInputSupportEnabled || !BindArgs.InputAction.IsValid()))
+	const FName BindActionName = BindArgs.GetActionName();
+	if (BindActionName.IsNone() && (!bIsEnhancedInputSupportEnabled || !BindArgs.InputAction.IsValid()))
 	{
 		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot create action binding for widget [%s] - no action provided."), *InBoundWidget.GetName());
 		return FUIActionBindingHandle();
 	}
 	else if (!BindArgs.OnExecuteAction.IsBound())
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - empty handler delegate."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - empty handler delegate."), *InBoundWidget.GetName(), *BindActionName.ToString());
 		return FUIActionBindingHandle();
 	}
 	else if (BindArgs.ActionTag.IsValid() && !UCommonUIInputSettings::Get().FindAction(BindArgs.ActionTag))
@@ -239,24 +246,24 @@ FUIActionBindingHandle FUIActionBinding::TryCreate(const UWidget& InBoundWidget,
 	}
 	else if (!BindArgs.LegacyActionTableRow.IsNull() && !BindArgs.LegacyActionTableRow.GetRow<FCommonInputActionDataBase>(TEXT("")))
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided legacy data table row does not resolve to valid data."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided legacy data table row does not resolve to valid data."), *InBoundWidget.GetName(), *BindActionName.ToString());
 		return FUIActionBindingHandle();
 	}
 	else if (!BindArgs.ActionTag.IsValid() && BindArgs.LegacyActionTableRow.IsNull() && bIsEnhancedInputSupportEnabled && !BindArgs.InputAction.IsValid())
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided input action is invalid."), *InBoundWidget.GetName(), *BindArgs.GetActionName().ToString());
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] - provided input action is invalid."), *InBoundWidget.GetName(), *BindActionName.ToString());
 		return FUIActionBindingHandle();
 	}
 	else if (UserIndex == INDEX_NONE)
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] [%s] - invalid UserIndex."), *BindArgs.GetActionName().ToString(), InputEventToString(BindArgs.KeyEvent), *InBoundWidget.GetName());
+		UE_LOG(LogUIActionRouter, Error, TEXT("Cannot bind widget [%s] to action [%s] [%s] - invalid UserIndex."), *BindActionName.ToString(), InputEventToString(BindArgs.KeyEvent), *InBoundWidget.GetName());
 		return FUIActionBindingHandle();
 	}
 	
 	// Make sure there is no existing binding for the same action associated with the same widget
 	for (const TPair<FUIActionBindingHandle, TSharedPtr<FUIActionBinding>>& HandleBindingPair : AllRegistrationsByHandle)
 	{
-		if (HandleBindingPair.Value->ActionName == BindArgs.GetActionName() &&
+		if (HandleBindingPair.Value->ActionName == BindActionName &&
 			HandleBindingPair.Value->InputEvent == BindArgs.KeyEvent &&
 			HandleBindingPair.Value->BoundWidget.Get() == &InBoundWidget &&
 			HandleBindingPair.Value->UserIndex == UserIndex)
@@ -315,18 +322,19 @@ FCommonInputActionDataBase* FUIActionBinding::GetLegacyInputActionData() const
 
 FString FUIActionBinding::ToDebugString() const
 {
-	return FString::Printf(TEXT("%s: Owner [%s], Mode [%s], Displayed? [%s]"),
+	return FString::Printf(TEXT("%s: Owner [%s], Mode [%s], Displayed? [%s], UserIndex [%d]"),
 		*ActionName.ToString(),
 		BoundWidget.IsValid() ? *BoundWidget->GetName() : TEXT("Invalid"),
 		LexToString(InputMode),
-		*LexToString(bDisplayInActionBar));
+		*LexToString(bDisplayInActionBar),
+		UserIndex);
 }
 
 void FUIActionBinding::BeginHold()
 {
 	if (HoldProgressRollbackTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 		HoldProgressRollbackTickerHandle = nullptr;
 	}
 	
@@ -393,7 +401,7 @@ void FUIActionBinding::BeginRollback(float TargetHoldRollbackTime, float InHoldT
             			
 			if (HoldRollbackPercent <= 0.f)
 			{
-				FTSTicker::GetCoreTicker().RemoveTicker(InBinding->HoldProgressRollbackTickerHandle);
+				FTSTicker::RemoveTicker(InBinding->HoldProgressRollbackTickerHandle);
 				InBinding->HoldProgressRollbackTickerHandle = nullptr;
 				InBinding->HoldStartSecond = 0.f;
 				InBinding->CurrentHoldSecond = 0.f;
@@ -417,7 +425,7 @@ void FUIActionBinding::ResetHold()
 {
 	if (HoldProgressRollbackTickerHandle.IsValid())
 	{
-		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		FTSTicker::RemoveTicker(HoldProgressRollbackTickerHandle);
 		HoldProgressRollbackTickerHandle = nullptr;
 	}
 	HoldStartSecond = 0.0f;
@@ -1088,7 +1096,7 @@ TOptional<FUIInputConfig> FActivatableTreeNode::FindDesiredInputConfig() const
 
 TOptional<FUIInputConfig> FActivatableTreeNode::FindDesiredActionDomainInputConfig() const
 {
-	UCommonInputActionDomain* ActionDomain = ensure(RepresentedWidget.IsValid()) ? RepresentedWidget->GetCalculatedActionDomain() : nullptr;
+	UCommonInputActionDomain* ActionDomain = ensure(RepresentedWidget.IsValid()) ? RepresentedWidget->GetCalculatedActionDomain().Get() : nullptr;
 	const bool bHasActionDomainConfig = ActionDomain && ActionDomain->bUseActionDomainDesiredInputConfig;
 	return  bHasActionDomainConfig ? FUIInputConfig(ActionDomain->InputMode, ActionDomain->MouseCaptureMode) : TOptional<FUIInputConfig>();
 }
@@ -1506,7 +1514,11 @@ void FActivatableTreeRoot::HandleInputMethodChanged(ECommonInputType InputMethod
 {
 	if (IsReceivingInput() && LeafmostActiveNode.IsValid() && ensure(LeafmostActiveNode.Pin()->IsReceivingInput()))
 	{
-		ApplyLeafmostNodeConfig();
+		const bool bRetainFocus = (InputMethod == ECommonInputType::Gamepad) && CVarGamepadFocusHoveredWidget.GetValueOnAnyThread();
+		
+		// If focus was not retained, let leafmost node determine which widget should be focused
+		ApplyLeafmostNodeConfig(bRetainFocus);
+
 		if (InputMethod != ECommonInputType::Gamepad)
 		{
 			LeafmostActiveNode.Pin()->CacheFocusRestorationTarget();
@@ -1514,7 +1526,7 @@ void FActivatableTreeRoot::HandleInputMethodChanged(ECommonInputType InputMethod
 	}
 }
 
-void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
+void FActivatableTreeRoot::ApplyLeafmostNodeConfig(bool bAttemptRetainFocus)
 {
 #if WITH_EDITOR
 	if (!IsViewportWindowInFocusPath(GetActionRouter()))
@@ -1527,6 +1539,7 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 		UE_LOG(LogUIActionRouter, Log, TEXT("Didn't apply input config for leaf-most node of root node [%s] because it's not the active action domain node"), *GetNameSafe(GetWidget()));
 		return;
 	}
+
 
 	if (FActivatableTreeNodePtr PinnedLeafmostNode = LeafmostActiveNode.Pin())
 	{
@@ -1547,7 +1560,17 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 				GetActionRouter().SetActiveUIInputConfig(FUIInputConfig());
 			}
 
-			FocusLeafmostNode();
+			bool bFocusLeafMost = true;
+			if (bAttemptRetainFocus)
+			{
+				// Focus if could not retain focus
+				bFocusLeafMost = !GamepadFocusHoveredWidget();
+			}
+			
+			if(bFocusLeafMost)
+			{ 
+				FocusLeafmostNode();
+			}
 		}
 		else
 		{
@@ -1678,6 +1701,32 @@ void FActivatableTreeRoot::HandleRequestRefreshLeafmostFocus()
 	{
 		FocusLeafmostNode();
 	}
+}
+
+bool FActivatableTreeRoot::GamepadFocusHoveredWidget()
+{
+
+	FSlateApplication& SlateApplication = FSlateApplication::Get();
+	TSharedPtr<FActivatableTreeNode> PinnedLeafmostActiveNode = LeafmostActiveNode.Pin();
+
+	// First attempt to regain focus by checking if any activable widgets are under the last mouse cursor position
+	FWidgetPath WidgetPath = SlateApplication.LocateWindowUnderMouse(SlateApplication.GetLastCursorPos(), SlateApplication.GetTopLevelWindows());
+	for (int Index = WidgetPath.Widgets.Num() - 1; Index >= 0; --Index)
+	{
+		TSharedRef<SWidget> WidgetUnderCursor = WidgetPath.Widgets[Index].Widget;
+		UCommonActivatableWidget* ActivatableWidgetUnderCursor = UCommonUIActionRouterBase::FindActivatable(WidgetUnderCursor , GetActionRouter().GetLocalPlayerChecked());
+		if (ActivatableWidgetUnderCursor != nullptr && IsWidgetInNodeHierarchy(ActivatableWidgetUnderCursor, *PinnedLeafmostActiveNode))
+		{
+			if (FSlateApplication::Get().SetUserFocus(GetOwnerUserIndex(), WidgetUnderCursor))
+			{
+				ULocalPlayer& LocalPlayer = *GetActionRouter().GetLocalPlayerChecked();
+				LocalPlayer.GetSlateOperations().CancelFocusRequest();
+			}
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FActivatableTreeRoot::DebugDump(FString& OutputStr, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const

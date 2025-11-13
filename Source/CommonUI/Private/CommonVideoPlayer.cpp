@@ -176,6 +176,10 @@ void UCommonVideoPlayer::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 	
+	if (MediaPlayer == nullptr)
+	{
+		return;
+	}
 	SetVideo(Video);
 }
 

@@ -15,9 +15,9 @@ class TWidgetFactory : public FGCObject
 {
 	static_assert(TIsDerivedFrom<WidgetType, UUserWidget>::IsDerived, "Can only use TWidgetFactory with types deriving from UUserWidget");
 private:
-	FORCEINLINE UGameInstance* OwningObjectAsGameInstance() const { return Cast<UGameInstance>(OuterGetter()); }
-	FORCEINLINE UWorld* OwningObjectAsWorld() const { return Cast<UWorld>(OuterGetter()); }
-	FORCEINLINE APlayerController* OwningObjectAsPlayerController() const { return Cast<APlayerController>(OuterGetter()); }
+	inline UGameInstance* OwningObjectAsGameInstance() const { return Cast<UGameInstance>(OuterGetter()); }
+	inline UWorld* OwningObjectAsWorld() const { return Cast<UWorld>(OuterGetter()); }
+	inline APlayerController* OwningObjectAsPlayerController() const { return Cast<APlayerController>(OuterGetter()); }
 
 public:
 	typedef TFunctionRef<TSharedPtr<SObjectWidget>(UUserWidget*, TSharedRef<SWidget>)> ConstructMethodType;
@@ -121,7 +121,7 @@ public:
 	/** Method to get a widget from this factory, can sometimes call CreateWidget */
 	WidgetType* Acquire()
 	{
-		WidgetType* Result = InactiveWidgets.Num() > 0 ? InactiveWidgets.Pop() : nullptr;
+		WidgetType* Result = InactiveWidgets.Num() > 0 ? InactiveWidgets.Pop().Get() : nullptr;
 
 		check(WidgetClass);
 		if (!Result && OuterGetter)

@@ -233,7 +233,7 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 										}
 									}
 
-									return Key == EKeys::Virtual_Back || Key == EKeys::Escape || Key == EKeys::Android_Back;
+									return Key == EKeys::Virtual_Gamepad_Back.GetVirtualKey() || Key == EKeys::Escape || Key == EKeys::Android_Back;
 								}
 								else if (InputAction)
 								{
@@ -248,7 +248,7 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 										}
 									}
 
-									return Key == EKeys::Virtual_Back || Key == EKeys::Escape || Key == EKeys::Android_Back;
+									return Key == EKeys::Virtual_Gamepad_Back.GetVirtualKey() || Key == EKeys::Escape || Key == EKeys::Android_Back;
 								}
 
 								return false;

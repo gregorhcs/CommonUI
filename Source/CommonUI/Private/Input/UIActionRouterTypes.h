@@ -205,7 +205,7 @@ public:
 
 	UE_API void RefreshCachedRestorationTarget();
 
-	UE_API void ApplyLeafmostNodeConfig();
+	UE_API void ApplyLeafmostNodeConfig(bool bAttemptRetainFocus = false);
 
 	UE_API bool IsAnActionDomainRoot() const;
 	UE_API bool IsActiveActionDomainRoot() const;
@@ -222,6 +222,8 @@ private:
 	void HandleInputMethodChanged(ECommonInputType InputMethod);
 
 	void HandleRequestRefreshLeafmostFocus();
+
+	bool GamepadFocusHoveredWidget();
 
 	// WeakPtr because the root itself can be the primary active node - results in a circular ref leak using a full SharedPtr here
 	TWeakPtr<FActivatableTreeNode> LeafmostActiveNode;
